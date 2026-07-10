@@ -8,6 +8,10 @@ from sqlalchemy.orm import declarative_base
 
 from app.config import DATABASE_URL, DEBUG
 
+# Force asyncpg driver for PostgreSQL
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 connect_args = {}
 if "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL:
     connect_args["ssl"] = True
