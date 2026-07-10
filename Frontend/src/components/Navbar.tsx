@@ -299,6 +299,11 @@ const Navbar: React.FC = () => {
           <div className="space-y-3 font-semibold text-sm">
             <Link to="/" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-yellow-300">Home</Link>
             <Link to="/orders" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-yellow-300">My Orders</Link>
+            {isLoggedIn && (
+              <Link to="/support" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-yellow-300 flex items-center gap-1.5">
+                <FaHeadset className="text-sm" /> Support Chat
+              </Link>
+            )}
             {isLoggedIn && user?.role === 'admin' && (
               <Link to="/admin" onClick={() => setIsMenuOpen(false)} className="block py-1 hover:text-yellow-300 flex items-center gap-2">
                 <FaUserShield /> Admin Panel
