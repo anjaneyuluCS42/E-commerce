@@ -19,6 +19,8 @@ if "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL:
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = ssl_context
+    # Disable statement cache for PgBouncer / Connection Pooler compatibility
+    connect_args["statement_cache_size"] = 0
 
 engine = create_async_engine(
     DATABASE_URL,
