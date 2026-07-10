@@ -69,18 +69,6 @@ async def register_user(
         if existing_user.username == user.username:
             raise HTTPException(status_code=400, detail="Username already exists")
 
-    verification_token = secrets.token_urlsafe(32)
-    new_user = User(
-        username=user.username,
-        email=user.email,
-        password=hash_password(user.password),
-        is_verified=False,
-        verification_token=verification_token
-    )
-
-    db.add(new_user)
-    await db.commit()
-
     # Trigger Supabase Auth registration if Anon Key is configured
     import httpx
     from app.config import SMTP_USER
@@ -110,8 +98,30 @@ async def register_user(
                     logger.info(f"Successfully registered user in Supabase Auth: {user.email}")
                 else:
                     logger.error(f"Supabase Auth signup returned: {resp.status_code} - {resp.text}")
+                    try:
+                        err_data = resp.json()
+                        error_msg = err_data.get("msg", "Failed to register with authentication service.")
+                    except:
+                        error_msg = "Failed to register with authentication service."
+                    raise HTTPException(status_code=resp.status_code, detail=error_msg)
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error registering in Supabase Auth: {e}")
+            raise HTTPException(status_code=500, detail="Failed to connect to authentication service.")
+
+    # Save to our database only if auth succeeded (or wasn't configured)
+    verification_token = secrets.token_urlsafe(32)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        password=hash_password(user.password),
+        is_verified=False,
+        verification_token=verification_token
+    )
+
+    db.add(new_user)
+    await db.commit()
 
     # Fallback to local email simulation if Supabase Auth wasn't used
     if not supabase_auth_success:
