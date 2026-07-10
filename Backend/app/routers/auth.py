@@ -42,6 +42,9 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
+import logging
+logger = logging.getLogger("uvicorn")
+
 from app.security.rate_limit import limiter
 from app.tasks.order_tasks import send_welcome_email, send_verification_email_task
 from fastapi.responses import RedirectResponse
@@ -78,19 +81,51 @@ async def register_user(
     db.add(new_user)
     await db.commit()
 
-    # Trigger Celery Task asynchronously to send verification mail
-    send_verification_email_task.delay(user.email, user.username, verification_token)
+    # Trigger Supabase Auth registration if Anon Key is configured
+    import httpx
+    from app.config import SMTP_USER
+    supabase_url = os.environ.get("SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    supabase_auth_success = False
+    if supabase_anon_key:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{supabase_url}/auth/v1/signup",
+                    headers={
+                        "apikey": supabase_anon_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "email": user.email,
+                        "password": user.password,
+                        "data": {
+                            "username": user.username
+                        }
+                    }
+                )
+                if resp.status_code in (200, 201):
+                    supabase_auth_success = True
+                    logger.info(f"Successfully registered user in Supabase Auth: {user.email}")
+                else:
+                    logger.error(f"Supabase Auth signup returned: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            logger.error(f"Error registering in Supabase Auth: {e}")
+
+    # Fallback to local email simulation if Supabase Auth wasn't used
+    if not supabase_auth_success:
+        send_verification_email_task.delay(user.email, user.username, verification_token)
+        
     send_welcome_email.delay(user.email, user.username)
 
-    from app.config import SMTP_USER, FRONTEND_URL
     backend_url = os.environ.get("BACKEND_URL", "https://e-commerce-pice.onrender.com")
-    
     response_data = {
         "message": "Registration successful! Please check your email to verify your account."
     }
     
-    # If mail sending is not set up, return a testing verification link in the response
-    if not SMTP_USER:
+    # If Supabase Auth is not set up and no SMTP_USER is set up, return a testing verification link
+    if not supabase_auth_success and not SMTP_USER:
         response_data["test_verification_url"] = f"{backend_url}/auth/verify?token={verification_token}"
         
     return response_data
@@ -148,11 +183,37 @@ async def login_user(
             detail="Invalid password"
         )
 
-    if not db_user.is_verified:
-        raise HTTPException(
-            status_code=400,
-            detail="Please verify your email address before logging in."
-        )
+    # Check verification status
+    try:
+        res = await db.execute(select(text("email_confirmed_at")).select_from(text("auth.users")).where(text("email = :email")), {"email": db_user.email})
+        row = res.fetchone()
+        if row:
+            email_confirmed_at = row[0]
+            if not email_confirmed_at:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Please verify your email address before logging in."
+                )
+            else:
+                # Sync verified state to our local public.users table
+                if not db_user.is_verified:
+                    db_user.is_verified = True
+                    await db.commit()
+        else:
+            # Fallback for users not in auth.users (e.g. old users)
+            if not db_user.is_verified:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Please verify your email address before logging in."
+                )
+    except Exception as e:
+        logger.error(f"Error checking Supabase Auth verification state: {e}")
+        # Fallback to local is_verified flag
+        if not db_user.is_verified:
+            raise HTTPException(
+                status_code=400,
+                detail="Please verify your email address before logging in."
+            )
 
     access_token = create_access_token({
         "sub": db_user.email,
