@@ -138,6 +138,32 @@ async def forgot_password(
     payload: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db)
 ):
+    import httpx
+    # Check if user exists in public.users
+    res = await db.execute(select(User).where(User.email == payload.email))
+    db_user = res.scalar_one_or_none()
+    
+    supabase_url = os.environ.get("SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    if db_user and supabase_anon_key:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{supabase_url}/auth/v1/recover",
+                    headers={
+                        "apikey": supabase_anon_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={"email": payload.email}
+                )
+                if resp.status_code in (200, 201):
+                    logger.info(f"Successfully sent password recovery email via Supabase to: {payload.email}")
+                else:
+                    logger.error(f"Supabase Auth recover returned: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            logger.error(f"Error requesting password recovery in Supabase: {e}")
+            
     return {"message": "If the email exists, a password reset link has been sent."}
 
 
@@ -148,6 +174,46 @@ async def reset_password(
     payload: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db)
 ):
+    import httpx
+    # The payload.token here will be the access_token passed from the frontend url fragment
+    supabase_url = os.environ.get("SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    if not supabase_anon_key:
+        raise HTTPException(status_code=400, detail="Supabase Auth is not configured.")
+        
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "apikey": supabase_anon_key,
+                    "Authorization": f"Bearer {payload.token}"
+                }
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+                
+            user_data = resp.json()
+            email = user_data.get("email")
+            if not email:
+                raise HTTPException(status_code=400, detail="Could not retrieve email from token.")
+    except Exception as e:
+        logger.error(f"Error verifying reset token with Supabase Auth: {e}")
+        raise HTTPException(status_code=400, detail="Failed to verify reset token.")
+        
+    # Find user in our database
+    res = await db.execute(select(User).where(User.email == email))
+    db_user = res.scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    # Update password in our database
+    db_user.password = hash_password(payload.new_password)
+    # Also ensure user is verified
+    db_user.is_verified = True
+    await db.commit()
+    
     return {"message": "Password has been reset successfully."}
 
 
