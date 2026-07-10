@@ -199,7 +199,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         redis_status = f"unhealthy: {str(e)}"
         
     status_code = 200
-    if "unhealthy" in db_status or "unhealthy" in redis_status:
+    if "unhealthy" in db_status:
         status_code = 503
         
     return JSONResponse(

@@ -22,6 +22,9 @@ router = APIRouter(
     tags=["Cart"]
 )
 
+import logging
+logger = logging.getLogger("uvicorn")
+
 @router.post("/add/{product_id}")
 async def add_to_cart(
     product_id: int,
@@ -40,20 +43,29 @@ async def add_to_cart(
 
     cart_key = f"cart:{current_user.id}"
     
-    # Get current quantity to add to it instead of replacing
-    current_qty = await redis_client.hget(cart_key, str(product_id))
-    new_qty = int(current_qty) + quantity if current_qty else quantity
+    try:
+        # Get current quantity to add to it instead of replacing
+        current_qty = await redis_client.hget(cart_key, str(product_id))
+        new_qty = int(current_qty) + quantity if current_qty else quantity
 
-    if new_qty > product.stock:
-        raise HTTPException(status_code=400, detail="Requested total quantity exceeds available stock")
+        if new_qty > product.stock:
+            raise HTTPException(status_code=400, detail="Requested total quantity exceeds available stock")
 
-    await redis_client.hset(cart_key, str(product_id), str(new_qty))
+        await redis_client.hset(cart_key, str(product_id), str(new_qty))
+    except Exception as e:
+        logger.error(f"Redis error in add_to_cart: {e}")
+        raise HTTPException(status_code=503, detail="Cart service is temporarily unavailable.")
+        
     return {"message": "Added to cart"}
 
 @router.get("/")
 async def get_cart(db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user), coupon_code: str = None):
     cart_key = f"cart:{current_user.id}"
-    cart_items = await redis_client.hgetall(cart_key)
+    try:
+        cart_items = await redis_client.hgetall(cart_key)
+    except Exception as e:
+        logger.error(f"Redis error in get_cart: {e}")
+        cart_items = {}
     
     if not cart_items:
         return {"items": [], "subtotal": 0, "tax": 0, "shipping": 0, "discount": 0, "total": 0}
@@ -103,7 +115,11 @@ async def get_cart(db: AsyncSession = Depends(get_db), current_user = Depends(ge
 @router.delete("/remove/{product_id}")
 async def remove_from_cart(product_id: int, current_user = Depends(get_current_user)):
     cart_key = f"cart:{current_user.id}"
-    await redis_client.hdel(cart_key, str(product_id))
+    try:
+        await redis_client.hdel(cart_key, str(product_id))
+    except Exception as e:
+        logger.error(f"Redis error in remove_from_cart: {e}")
+        raise HTTPException(status_code=503, detail="Cart service is temporarily unavailable.")
     return {"message": "Item removed"}
 
 @router.post("/merge")
@@ -113,16 +129,21 @@ async def merge_guest_cart(guest_cart: dict, db: AsyncSession = Depends(get_db),
     """
     cart_key = f"cart:{current_user.id}"
     
-    for pid, qty in guest_cart.items():
-        # Ideally, validate stock here again
-        current_qty = await redis_client.hget(cart_key, str(pid))
-        new_qty = int(current_qty) + int(qty) if current_qty else int(qty)
-        await redis_client.hset(cart_key, str(pid), str(new_qty))
+    try:
+        for pid, qty in guest_cart.items():
+            current_qty = await redis_client.hget(cart_key, str(pid))
+            new_qty = int(current_qty) + int(qty) if current_qty else int(qty)
+            await redis_client.hset(cart_key, str(pid), str(new_qty))
+    except Exception as e:
+        logger.error(f"Redis error in merge_guest_cart: {e}")
 
     return {"message": "Guest cart merged successfully"}
 
 @router.delete("/clear")
 async def clear_cart(current_user = Depends(get_current_user)):
     cart_key = f"cart:{current_user.id}"
-    await redis_client.delete(cart_key)
+    try:
+        await redis_client.delete(cart_key)
+    except Exception as e:
+        logger.error(f"Redis error in clear_cart: {e}")
     return {"message": "Cart cleared"}
