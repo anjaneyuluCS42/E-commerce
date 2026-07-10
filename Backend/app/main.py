@@ -170,8 +170,12 @@ async def add_request_id_header(request: Request, call_next):
 
 @app.on_event("startup")
 async def startup():
-
+    from sqlalchemy import text
     async with engine.begin() as conn:
+        try:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        except Exception as e:
+            logger.warning(f"Could not create pg_trgm extension: {e}")
         await conn.run_sync(
             Base.metadata.create_all
         )
