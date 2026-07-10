@@ -159,7 +159,9 @@ async def forgot_password(
     if db_user and supabase_anon_key:
         try:
             async with httpx.AsyncClient() as client:
-                redirect_url = f"{FRONTEND_URL}/reset-password"
+                origin = request.headers.get("origin") or FRONTEND_URL
+                origin = origin.rstrip("/")
+                redirect_url = f"{origin}/reset-password"
                 resp = await client.post(
                     f"{supabase_url}/auth/v1/recover?redirectTo={redirect_url}",
                     headers={
