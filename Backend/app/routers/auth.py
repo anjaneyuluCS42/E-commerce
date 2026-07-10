@@ -453,3 +453,35 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     
     from app.config import FRONTEND_URL
     return RedirectResponse(url=f"{FRONTEND_URL}/login?verified=true")
+
+
+@router.get("/test-db-query")
+async def test_db_query(email: str, db: AsyncSession = Depends(get_db)):
+    import traceback
+    from sqlalchemy import text
+    from app.database import engine
+    try:
+        res = await db.execute(
+            text("SELECT email_confirmed_at FROM auth.users WHERE email = :email"),
+            {"email": email}
+        )
+        row = res.fetchone()
+        if row:
+            return {"status": "success", "row": str(row), "email_confirmed_at": str(row[0])}
+            
+        # Try direct connection test
+        async with engine.connect() as conn:
+            res = await conn.execute(
+                text("SELECT email_confirmed_at FROM auth.users WHERE email = :email"),
+                {"email": email}
+            )
+            row = res.fetchone()
+            return {"status": "success_direct", "row": str(row)}
+            
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_type": str(type(e)),
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
