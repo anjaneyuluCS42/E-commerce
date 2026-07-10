@@ -70,9 +70,20 @@ export const WebSocketProvider = ({ children }) => {
     setConnectionStatus(retryCountRef.current > 0 ? 'reconnecting' : 'connecting');
     setError(null);
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const url = `${protocol}//${host}/api/ws?token=${token}`;
+    let url;
+    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+    if (apiBaseUrl.startsWith('http')) {
+      const parsedUrl = new URL(apiBaseUrl);
+      const wsProtocol = parsedUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+      const isProxy = parsedUrl.port === '5173' || parsedUrl.port === '5174';
+      const pathSuffix = isProxy ? '/api/ws' : '/ws';
+      url = `${wsProtocol}//${parsedUrl.host}${pathSuffix}?token=${token}`;
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      url = `${protocol}//${host}${apiBaseUrl}/ws?token=${token}`;
+    }
 
     try {
       if (reconnectTimeoutRef.current) {
