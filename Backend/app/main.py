@@ -96,20 +96,17 @@ app.include_router(tasks_router)
 app.include_router(ai_router)
 
 # Phase 1: Dynamic CORS Configuration based on Environment
-if ENVIRONMENT == "production":
-    allowed_origins = [
-        FRONTEND_URL, 
-        # Add other production domains here (e.g., "https://www.yourdomain.com")
-    ]
-else:
-    # Development: Allow localhost for Vite, etc.
-    allowed_origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        FRONTEND_URL
-    ]
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "https://e-commerce-anji3.vercel.app"
+]
+
+if FRONTEND_URL:
+    allowed_origins.append(FRONTEND_URL)
+    allowed_origins.append(FRONTEND_URL.rstrip("/"))
 
 app.add_middleware(
     CORSMiddleware,
