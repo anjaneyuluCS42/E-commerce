@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ecommerce-frontend</title>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        var div = document.createElement('div');
+        div.style.position = 'fixed';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.style.width = '100%';
+        div.style.backgroundColor = '#fee2e2';
+        div.style.color = '#991b1b';
+        div.style.padding = '20px';
+        div.style.fontFamily = 'monospace';
+        div.style.zIndex = '999999';
+        div.style.borderBottom = '4px solid #f87171';
+        div.innerHTML = '<h3>Runtime Error:</h3><p>' + message + '</p><p>at ' + source + ':' + lineno + ':' + colno + '</p>';
+        document.body.appendChild(div);
+      };
+      window.onunhandledrejection = function(event) {
+        var div = document.createElement('div');
+        div.style.position = 'fixed';
+        div.style.top = '0';
+        div.style.left = '0';
+        div.style.width = '100%';
+        div.style.backgroundColor = '#fee2e2';
+        div.style.color = '#991b1b';
+        div.style.padding = '20px';
+        div.style.fontFamily = 'monospace';
+        div.style.zIndex = '999999';
+        div.style.borderBottom = '4px solid #f87171';
+        div.innerHTML = '<h3>Unhandled Promise Rejection:</h3><p>' + (event.reason ? event.reason.message || event.reason : 'Unknown rejection') + '</p>';
+        document.body.appendChild(div);
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

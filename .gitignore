@@ -1,0 +1,29 @@
+# Ignore ZIP files
+*.zip
+Backend.zip
+Frontend.zip
+
+# Node/Frontend dependency and build directories
+node_modules/
+dist/
+.eslintcache
+
+# Python/Backend virtual environments and cache
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite3
+
+# Environment variables (secrets)
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db

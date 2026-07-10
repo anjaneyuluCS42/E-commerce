@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: ecommerce_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis Broker and Result Backend Service
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # FastAPI Web Backend Application
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: ecommerce_backend
+    restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./Backend:/app
+      - uploads_volume:/app/uploads
+      - invoices_volume:/app/invoices
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretkey
+      - ALGORITHM=HS256
+      - ENVIRONMENT=production
+      - ROOT_PATH=/api
+    depends_on:
+      - postgres
+      - redis
+
+  # High Priority Celery Worker (Processes Order Confirmation Emails)
+  celery_worker_high:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: ecommerce_celery_worker_high
+    restart: always
+    command: celery -A app.tasks.celery_worker.celery worker -Q high_priority -c 2 --loglevel=info
+    volumes:
+      - ./Backend:/app
+      - uploads_volume:/app/uploads
+      - invoices_volume:/app/invoices
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretkey
+      - ALGORITHM=HS256
+    depends_on:
+      - redis
+      - postgres
+
+  # Default / Low Priority Worker (Invoices and Bulk CSV Imports)
+  celery_worker_default:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: ecommerce_celery_worker_default
+    restart: always
+    command: celery -A app.tasks.celery_worker.celery worker -Q default,low_priority -c 4 --loglevel=info
+    volumes:
+      - ./Backend:/app
+      - uploads_volume:/app/uploads
+      - invoices_volume:/app/invoices
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretkey
+      - ALGORITHM=HS256
+    depends_on:
+      - redis
+      - postgres
+
+  # Celery Beat Scheduler
+  celery_beat:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: ecommerce_celery_beat
+    restart: always
+    command: celery -A app.tasks.celery_worker.celery beat --loglevel=info
+    volumes:
+      - ./Backend:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=supersecretkey
+      - ALGORITHM=HS256
+    depends_on:
+      - redis
+
+  # React Frontend client application
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: ecommerce_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_volume:
+  invoices_volume:
