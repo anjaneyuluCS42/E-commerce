@@ -8,13 +8,18 @@ from sqlalchemy.orm import declarative_base
 
 from app.config import DATABASE_URL, DEBUG
 
+connect_args = {}
+if "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL:
+    connect_args["ssl"] = True
+
 engine = create_async_engine(
     DATABASE_URL,
     echo=DEBUG,
     pool_size=20,
     max_overflow=10,
     pool_timeout=30,
-    pool_recycle=1800
+    pool_recycle=1800,
+    connect_args=connect_args
 )
 
 AsyncSessionLocal = sessionmaker(
