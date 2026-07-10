@@ -132,7 +132,9 @@ async def login_user(
 
     access_token = create_access_token({
         "sub": db_user.email,
-        "role": db_user.role
+        "role": db_user.role,
+        "id": db_user.id,
+        "username": db_user.username
     })
 
     refresh_token = create_refresh_token({
@@ -208,7 +210,9 @@ async def refresh_token(
 
     new_access_token = create_access_token({
         "sub": user.email,
-        "role": user.role
+        "role": user.role,
+        "id": user.id,
+        "username": user.username
     })
 
     response.set_cookie(
@@ -231,3 +235,17 @@ async def logout_user(response: Response):
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/auth/refresh")
     return {"message": "Logged out successfully"}
+
+
+@router.get("/users/{user_id}")
+async def get_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role
+    }

@@ -48,8 +48,15 @@ const authService = {
           const decodedPayload = JSON.parse(atob(payloadBase64));
           const userEmail = decodedPayload.sub;
           const userRole = decodedPayload.role;
+          const userId = decodedPayload.id;
+          const userName = decodedPayload.username;
           if (userEmail) {
-            const userObj = { email: userEmail, role: userRole };
+            const userObj = { 
+              email: userEmail, 
+              role: userRole, 
+              id: userId, 
+              username: userName 
+            };
             localStorage.setItem('user', JSON.stringify(userObj));
             data.user = userObj;
           }

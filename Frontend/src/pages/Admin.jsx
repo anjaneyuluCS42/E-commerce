@@ -518,6 +518,7 @@ function AdminSupportChat() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const [usernames, setUsernames] = useState({});
 
   const activeUsers = Array.from(
     new Set(
@@ -526,6 +527,24 @@ function AdminSupportChat() {
         .filter((id) => id !== 1)
     )
   );
+
+  useEffect(() => {
+    activeUsers.forEach(async (uid) => {
+      if (uid && !usernames[uid]) {
+        try {
+          const response = await api.get(`/auth/users/${uid}`);
+          if (response.data && response.data.username) {
+            setUsernames((prev) => ({
+              ...prev,
+              [uid]: response.data.username,
+            }));
+          }
+        } catch (err) {
+          console.error(`Failed to fetch username for user ID ${uid}:`, err);
+        }
+      }
+    });
+  }, [activeUsers, usernames]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -603,7 +622,7 @@ function AdminSupportChat() {
                   selectedUser === uid ? 'bg-blue-50/50 dark:bg-gray-700/50 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'
                 }`}
               >
-                <span>Customer #{uid}</span>
+                <span>{usernames[uid] || `Customer #${uid}`}</span>
                 {typingStates[uid] && (
                   <span className="text-[10px] text-green-500 animate-pulse font-normal italic">typing...</span>
                 )}
@@ -617,7 +636,7 @@ function AdminSupportChat() {
         {selectedUser ? (
           <>
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center text-xs font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800">
-              <span>Customer #{selectedUser} Support Session</span>
+              <span>{usernames[selectedUser] ? `${usernames[selectedUser]}'s Support Session` : `Customer #${selectedUser} Support Session`}</span>
               {isUserTyping && <span className="text-green-500 font-medium italic animate-pulse">typing...</span>}
             </div>
 
@@ -648,7 +667,7 @@ function AdminSupportChat() {
                 type="text"
                 value={inputText}
                 onChange={handleInputChange}
-                placeholder={`Reply to Customer #${selectedUser}...`}
+                placeholder={`Reply to ${usernames[selectedUser] || `Customer #${selectedUser}`}...`}
                 className="flex-grow px-3.5 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-100 placeholder-gray-400"
               />
               <button

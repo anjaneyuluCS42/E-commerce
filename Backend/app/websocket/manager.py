@@ -1,6 +1,9 @@
 import json
+import logging
 from fastapi import WebSocket
 from typing import Dict, List
+
+logger = logging.getLogger("uvicorn")
 
 class ConnectionManager:
     def __init__(self):
@@ -96,25 +99,31 @@ class ConnectionManager:
         if payload:
             notif.update(payload)
             
-        from app.cache.redis_client import redis_client
-        await redis_client.rpush(f"notifications:{user_id}", json.dumps(notif))
-        
+        try:
+            from app.cache.redis_client import redis_client
+            await redis_client.rpush(f"notifications:{user_id}", json.dumps(notif))
+        except Exception as e:
+            logger.error(f"Redis error in send_notification: {e}")
+            
         # Dispatch live message
         await self.send_to_user(notif, user_id)
 
     # Mark Notification as Read in Redis
     async def mark_notification_as_read(self, user_id: int, notification_id: str):
-        from app.cache.redis_client import redis_client
-        key = f"notifications:{user_id}"
-        notifs = await redis_client.lrange(key, 0, -1)
-        
-        # Clear the old list and push updated values
-        await redis_client.delete(key)
-        for notif_str in notifs:
-            notif = json.loads(notif_str)
-            if notif.get("id") == notification_id:
-                notif["read"] = True
-            await redis_client.rpush(key, json.dumps(notif))
+        try:
+            from app.cache.redis_client import redis_client
+            key = f"notifications:{user_id}"
+            notifs = await redis_client.lrange(key, 0, -1)
+            
+            # Clear the old list and push updated values
+            await redis_client.delete(key)
+            for notif_str in notifs:
+                notif = json.loads(notif_str)
+                if notif.get("id") == notification_id:
+                    notif["read"] = True
+                await redis_client.rpush(key, json.dumps(notif))
+        except Exception as e:
+            logger.error(f"Redis error in mark_notification_as_read: {e}")
 
     # Save Chat Messages in Redis
     async def save_chat_message(self, sender_id: int, receiver_id: int, text: str, timestamp: str = None):
@@ -129,8 +138,11 @@ class ConnectionManager:
             "text": text,
             "timestamp": timestamp
         }
-        from app.cache.redis_client import redis_client
-        await redis_client.rpush("chat:history:global", json.dumps(msg))
+        try:
+            from app.cache.redis_client import redis_client
+            await redis_client.rpush("chat:history:global", json.dumps(msg))
+        except Exception as e:
+            logger.error(f"Redis error in save_chat_message: {e}")
         return msg
 
     # Send History on Connect
@@ -139,27 +151,33 @@ class ConnectionManager:
         
         # 1. Send stored notifications
         notif_key = f"notifications:{user_id}"
-        notifs = await redis_client.lrange(notif_key, 0, -1)
-        for notif_str in notifs:
-            try:
-                await websocket.send_text(notif_str)
-            except:
-                pass
+        try:
+            notifs = await redis_client.lrange(notif_key, 0, -1)
+            for notif_str in notifs:
+                try:
+                    await websocket.send_text(notif_str)
+                except:
+                    pass
+        except Exception as e:
+            logger.error(f"Redis error in send_history_on_connect notifications: {e}")
                 
         # 2. Send relevant chat history
         chat_key = "chat:history:global"
-        messages = await redis_client.lrange(chat_key, 0, -1)
-        for msg_str in messages:
-            try:
-                msg = json.loads(msg_str)
-                # Admin (ID 1) gets all support messages. Customers get messages sent to/from them.
-                if user_id == 1 or msg.get("sender_id") == user_id or msg.get("receiver_id") == user_id:
-                    msg_payload = {
-                        "type": "chat_message",
-                        **msg
-                    }
-                    await websocket.send_text(json.dumps(msg_payload))
-            except:
-                pass
+        try:
+            messages = await redis_client.lrange(chat_key, 0, -1)
+            for msg_str in messages:
+                try:
+                    msg = json.loads(msg_str)
+                    # Admin (ID 1) gets all support messages. Customers get messages sent to/from them.
+                    if user_id == 1 or msg.get("sender_id") == user_id or msg.get("receiver_id") == user_id:
+                        msg_payload = {
+                            "type": "chat_message",
+                            **msg
+                        }
+                        await websocket.send_text(json.dumps(msg_payload))
+                except:
+                    pass
+        except Exception as e:
+            logger.error(f"Redis error in send_history_on_connect chat history: {e}")
 
 manager = ConnectionManager()
