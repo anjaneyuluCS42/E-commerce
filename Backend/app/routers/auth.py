@@ -261,7 +261,10 @@ async def login_user(
 
     # Check verification status
     try:
-        res = await db.execute(select(text("email_confirmed_at")).select_from(text("auth.users")).where(text("email = :email")), {"email": db_user.email})
+        res = await db.execute(
+            text("SELECT email_confirmed_at FROM auth.users WHERE email = :email"),
+            {"email": db_user.email}
+        )
         row = res.fetchone()
         if row:
             email_confirmed_at = row[0]
