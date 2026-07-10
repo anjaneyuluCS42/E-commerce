@@ -24,7 +24,7 @@ from app.auth.jwt_handler import (
 )
 
 from jose import JWTError, jwt
-from app.config import SECRET_KEY, ALGORITHM, ENVIRONMENT
+from app.config import SECRET_KEY, ALGORITHM, ENVIRONMENT, FRONTEND_URL
 from pydantic import BaseModel
 
 class RefreshRequest(BaseModel):
@@ -159,8 +159,9 @@ async def forgot_password(
     if db_user and supabase_anon_key:
         try:
             async with httpx.AsyncClient() as client:
+                redirect_url = f"{FRONTEND_URL}/reset-password"
                 resp = await client.post(
-                    f"{supabase_url}/auth/v1/recover",
+                    f"{supabase_url}/auth/v1/recover?redirectTo={redirect_url}",
                     headers={
                         "apikey": supabase_anon_key,
                         "Content-Type": "application/json"
