@@ -78,9 +78,22 @@ async def register_user(
     supabase_auth_success = False
     if supabase_anon_key:
         try:
+            # Dynamically extract origin from headers
+            origin = request.headers.get("origin")
+            if not origin:
+                referer = request.headers.get("referer")
+                if referer:
+                    from urllib.parse import urlparse
+                    parsed_url = urlparse(referer)
+                    origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            if not origin:
+                origin = FRONTEND_URL
+            origin = origin.rstrip("/")
+            redirect_url = f"{origin}/login?verified=true"
+
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
-                    f"{supabase_url}/auth/v1/signup",
+                    f"{supabase_url}/auth/v1/signup?redirect_to={redirect_url}",
                     headers={
                         "apikey": supabase_anon_key,
                         "Content-Type": "application/json"
@@ -159,11 +172,20 @@ async def forgot_password(
     if db_user and supabase_anon_key:
         try:
             async with httpx.AsyncClient() as client:
-                origin = request.headers.get("origin") or FRONTEND_URL
+                origin = request.headers.get("origin")
+                if not origin:
+                    referer = request.headers.get("referer")
+                    if referer:
+                        from urllib.parse import urlparse
+                        parsed_url = urlparse(referer)
+                        origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+                if not origin:
+                    origin = FRONTEND_URL
                 origin = origin.rstrip("/")
                 redirect_url = f"{origin}/reset-password"
+                
                 resp = await client.post(
-                    f"{supabase_url}/auth/v1/recover?redirectTo={redirect_url}",
+                    f"{supabase_url}/auth/v1/recover?redirect_to={redirect_url}",
                     headers={
                         "apikey": supabase_anon_key,
                         "Content-Type": "application/json"
