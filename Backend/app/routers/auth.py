@@ -301,8 +301,11 @@ async def login_user(
             else:
                 # Sync verified state to our local public.users table
                 if not db_user.is_verified:
-                    db_user.is_verified = True
-                    await db.commit()
+                    try:
+                        db_user.is_verified = True
+                        await db.commit()
+                    except Exception as sync_err:
+                        logger.warning(f"Could not sync verification status to local db: {sync_err}")
         else:
             # Fallback for users not in auth.users (e.g. old users)
             if not db_user.is_verified:
