@@ -99,6 +99,40 @@ const authService = {
       return null;
     }
   },
+
+  forgotPassword: async (email) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw data;
+      }
+      return data;
+    } catch (error) {
+      throw error?.detail || error?.message || 'Failed to request reset link';
+    }
+  },
+
+  resetPassword: async (token, new_password) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw data;
+      }
+      return data;
+    } catch (error) {
+      throw error?.detail || error?.message || 'Password reset failed';
+    }
+  },
 };
 
 export default authService;

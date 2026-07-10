@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
+import authService from '../services/authService';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,6 +13,29 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Forgot Password Modal States
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotSuccess('');
+    if (!forgotEmail) { setForgotError('Please enter your email'); return; }
+    try {
+      setForgotLoading(true);
+      await authService.forgotPassword(forgotEmail);
+      setForgotSuccess('If the account exists, a password reset link has been sent to your email.');
+    } catch (err) {
+      setForgotError(err?.message || err || 'Failed to request password reset link.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const searchParams = new URLSearchParams(location.search);
   const isVerified = searchParams.get('verified') === 'true';
@@ -112,7 +136,13 @@ export default function Login() {
                   <input type="checkbox" className="rounded text-blue-600 focus:ring-blue-500" />
                   Remember me
                 </label>
-                <a href="#" className="text-blue-600 hover:text-blue-700 font-bold">Forgot password?</a>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotModal(true); setForgotError(''); setForgotSuccess(''); }}
+                  className="text-blue-600 hover:text-blue-700 font-bold focus:outline-none"
+                >
+                  Forgot password?
+                </button>
               </div>
 
               {/* Submit */}
@@ -155,6 +185,62 @@ export default function Login() {
           ))}
         </div>
       </div>
+      
+      {/* Forgot Password Modal */}
+      {showForgotModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl relative border border-gray-100">
+            <button 
+              type="button" 
+              onClick={() => { setShowForgotModal(false); setForgotError(''); setForgotSuccess(''); }} 
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-650 text-xl font-bold"
+            >
+              &times;
+            </button>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Reset Password</h3>
+            <p className="text-gray-600 text-xs mb-6">
+              Enter your email address below and we'll request a password reset link from Supabase Auth to your inbox.
+            </p>
+            
+            {forgotError && (
+              <div className="mb-4 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
+                ⚠️ {forgotError}
+              </div>
+            )}
+            
+            {forgotSuccess && (
+              <div className="mb-4 p-3.5 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs font-semibold">
+                ✅ {forgotSuccess}
+              </div>
+            )}
+            
+            <form onSubmit={handleForgotSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5 text-left">Email Address</label>
+                <input 
+                  type="email" 
+                  value={forgotEmail} 
+                  onChange={(e) => setForgotEmail(e.target.value)} 
+                  placeholder="you@example.com" 
+                  required 
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all"
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={forgotLoading}
+                className={`w-full py-3 rounded-xl font-black text-sm transition-all shadow-md ${
+                  forgotLoading 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white'
+                }`}
+              >
+                {forgotLoading ? 'Sending Link...' : 'Send Reset Link'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
