@@ -173,6 +173,11 @@ async def startup():
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         except Exception as e:
             logger.warning(f"Could not create pg_trgm extension: {e}")
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT TRUE"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR"))
+        except Exception as e:
+            logger.warning(f"Could not add email verification columns: {e}")
         await conn.run_sync(
             Base.metadata.create_all
         )

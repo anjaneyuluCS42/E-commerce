@@ -9,6 +9,7 @@ export default function Register() {
   const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [regResponse, setRegResponse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -38,9 +39,9 @@ export default function Register() {
     try {
       setLoading(true);
       setError('');
-      await register(form.username, form.email, form.password);
+      const res = await register(form.username, form.email, form.password);
+      setRegResponse(res);
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
       const message = err?.message || err?.detail || 'Registration failed. Email may already be registered.';
       setError(message);
@@ -61,13 +62,30 @@ export default function Register() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-xl border border-green-100 p-12 text-center max-w-md w-full">
-          <FaCheckCircle className="text-green-500 text-6xl mx-auto mb-5 animate-bounce" />
-          <h2 className="text-2xl font-black text-gray-900 mb-2">Account Created!</h2>
-          <p className="text-gray-600 text-sm mb-4">Redirecting you to login...</p>
-          <Link to="/login" className="text-blue-600 hover:text-blue-700 font-bold text-sm">
-            Go to Login Now →
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center max-w-md w-full">
+          <FaCheckCircle className="text-blue-600 text-6xl mx-auto mb-5 animate-pulse" />
+          <h2 className="text-2xl font-black text-gray-900 mb-3">Verify Your Email</h2>
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+            We have sent a verification link to <strong className="text-gray-950">{form.email}</strong>. 
+            Please check your email inbox to verify your email address and activate your account.
+          </p>
+          
+          {regResponse?.test_verification_url && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-xs text-left leading-relaxed">
+              <strong className="block text-yellow-900 mb-1">⚠️ Testing Link (No Email Server configured)</strong>
+              We detected that SMTP is not set up on your server. You can click the link below to verify this account directly for testing:
+              <a 
+                href={regResponse.test_verification_url} 
+                className="block mt-2 text-blue-600 hover:text-blue-700 font-bold underline break-all"
+              >
+                Verify {form.email} Now
+              </a>
+            </div>
+          )}
+          
+          <Link to="/login" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm inline-block transition-colors shadow-sm">
+            Go to Login Page
           </Link>
         </div>
       </div>

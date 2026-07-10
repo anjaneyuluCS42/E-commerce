@@ -13,6 +13,10 @@ class User(Base):
     # Phase 2: Added Production Fields
     role = Column(String, default="user") # 'user' or 'admin'
     is_active = Column(Boolean, default=True)
+    
+    # Email Verification Fields
+    is_verified = Column(Boolean, default=True)
+    verification_token = Column(String, nullable=True)
 
     products = relationship(
         "Product",

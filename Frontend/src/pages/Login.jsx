@@ -1,16 +1,20 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const searchParams = new URLSearchParams(location.search);
+  const isVerified = searchParams.get('verified') === 'true';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,6 +54,12 @@ export default function Login() {
 
           {/* Form Area */}
           <div className="px-8 py-8">
+            {isVerified && (
+              <div className="mb-5 p-4 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm font-semibold flex items-center gap-2">
+                ✅ Email verified successfully! You can now log in.
+              </div>
+            )}
+
             {error && (
               <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-semibold flex items-center gap-2">
                 ⚠️ {error}

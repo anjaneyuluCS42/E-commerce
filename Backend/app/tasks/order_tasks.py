@@ -165,3 +165,40 @@ async def run_import(file_path: str, admin_id: int, task_self):
 def bulk_import_products_task(self, file_path: str, admin_id: int):
     # Run the async importer synchronously inside Celery using asyncio event loop
     return asyncio.run(run_import(file_path, admin_id, self))
+
+
+@celery.task(bind=True, max_retries=3)
+def send_verification_email_task(self, email: str, username: str, token: str):
+    import os
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from app.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+    
+    backend_url = os.environ.get("BACKEND_URL", "https://e-commerce-pice.onrender.com")
+    verification_link = f"{backend_url}/auth/verify?token={token}"
+    
+    subject = "Verify your email address - ShopHub"
+    body = f"Hello {username},\n\nThank you for registering at ShopHub!\nPlease verify your email address by clicking the link below:\n\n{verification_link}\n\nIf you did not create this account, please ignore this email.\n\nRegards,\nShopHub Team"
+    
+    if not SMTP_USER or not SMTP_PASSWORD:
+        logger.warning(f"SMTP credentials not configured. Verification link for {email}: {verification_link}")
+        return {"status": "Logged to console", "link": verification_link}
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_USER
+        msg['To'] = email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"Verification email sent successfully to {email}")
+        return {"status": "Email Sent", "email": email}
+    except Exception as exc:
+        logger.error(f"Failed to send verification email to {email}: {exc}")
+        raise self.retry(exc=exc, countdown=60)

@@ -43,7 +43,10 @@ router = APIRouter(
 )
 
 from app.security.rate_limit import limiter
-from app.tasks.order_tasks import send_welcome_email
+from app.tasks.order_tasks import send_welcome_email, send_verification_email_task
+from fastapi.responses import RedirectResponse
+import os
+import secrets
 
 @router.post("/register")
 @limiter.limit("5/minute")
@@ -63,19 +66,34 @@ async def register_user(
         if existing_user.username == user.username:
             raise HTTPException(status_code=400, detail="Username already exists")
 
+    verification_token = secrets.token_urlsafe(32)
     new_user = User(
         username=user.username,
         email=user.email,
-        password=hash_password(user.password)
+        password=hash_password(user.password),
+        is_verified=False,
+        verification_token=verification_token
     )
 
     db.add(new_user)
     await db.commit()
 
-    # Phase 8: Trigger Celery Task asynchronously
+    # Trigger Celery Task asynchronously to send verification mail
+    send_verification_email_task.delay(user.email, user.username, verification_token)
     send_welcome_email.delay(user.email, user.username)
 
-    return {"message": "User registered successfully"}
+    from app.config import SMTP_USER, FRONTEND_URL
+    backend_url = os.environ.get("BACKEND_URL", "https://e-commerce-pice.onrender.com")
+    
+    response_data = {
+        "message": "Registration successful! Please check your email to verify your account."
+    }
+    
+    # If mail sending is not set up, return a testing verification link in the response
+    if not SMTP_USER:
+        response_data["test_verification_url"] = f"{backend_url}/auth/verify?token={verification_token}"
+        
+    return response_data
 
 
 @router.post("/forgot-password")
@@ -128,6 +146,12 @@ async def login_user(
         raise HTTPException(
             status_code=400,
             detail="Invalid password"
+        )
+
+    if not db_user.is_verified:
+        raise HTTPException(
+            status_code=400,
+            detail="Please verify your email address before logging in."
         )
 
     access_token = create_access_token({
@@ -249,3 +273,18 @@ async def get_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
         "email": user.email,
         "role": user.role
     }
+
+
+@router.get("/verify")
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
+        
+    user.is_verified = True
+    user.verification_token = None
+    await db.commit()
+    
+    from app.config import FRONTEND_URL
+    return RedirectResponse(url=f"{FRONTEND_URL}/login?verified=true")
