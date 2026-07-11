@@ -260,7 +260,7 @@ export default function Admin() {
   };
 
   const tabClass = (tab) =>
-    `px-5 py-2.5 font-bold text-sm rounded-xl transition-all ${
+    `px-5 py-2.5 font-bold text-sm rounded-xl transition-all flex-shrink-0 ${
       activeTab === tab
         ? 'bg-blue-600 text-white shadow-sm'
         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -277,7 +277,7 @@ export default function Admin() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm w-fit">
+        <div className="flex gap-2 mb-8 bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto whitespace-nowrap max-w-full scrollbar-none">
           <button onClick={() => setActiveTab('dashboard')} className={tabClass('dashboard')}>
             <span className="flex items-center gap-2"><FaChartBar /> Dashboard</span>
           </button>
@@ -615,8 +615,8 @@ function AdminSupportChat() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex h-[500px]">
-      <div className="w-1/3 border-r border-gray-100 dark:border-gray-700 flex flex-col">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col md:flex-row h-[550px] md:h-[500px]">
+      <div className={`w-full md:w-1/3 border-r border-gray-100 dark:border-gray-700 flex flex-col ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 font-bold text-sm text-gray-800 dark:text-gray-200">
           Active Chats
         </div>
@@ -642,11 +642,20 @@ function AdminSupportChat() {
         </div>
       </div>
 
-      <div className="flex-grow flex flex-col bg-gray-50/20 dark:bg-gray-900/10">
+      <div className={`flex-grow flex flex-col bg-gray-50/20 dark:bg-gray-900/10 ${!selectedUser ? 'hidden md:flex' : 'flex'}`}>
         {selectedUser ? (
           <>
             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center text-xs font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800">
-              <span>{usernames[selectedUser] ? `${usernames[selectedUser]}'s Support Session` : `Customer #${selectedUser} Support Session`}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedUser(null)}
+                  className="md:hidden text-blue-600 hover:text-blue-700 flex items-center gap-1 mr-2"
+                >
+                  ← Back
+                </button>
+                <span>{usernames[selectedUser] ? `${usernames[selectedUser]}'s Support Session` : `Customer #${selectedUser} Support Session`}</span>
+              </div>
               {isUserTyping && <span className="text-green-500 font-medium italic animate-pulse">typing...</span>}
             </div>
 
