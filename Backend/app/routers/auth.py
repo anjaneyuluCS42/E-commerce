@@ -65,7 +65,7 @@ async def register_user(
 
     for existing_user in existing_users:
         if existing_user.email == user.email:
-            raise HTTPException(status_code=400, detail="Email already exists")
+            raise HTTPException(status_code=400, detail="Email already exists. Please login using your password.")
         if existing_user.username == user.username:
             raise HTTPException(status_code=400, detail="Username already exists")
 
@@ -109,11 +109,17 @@ async def register_user(
                 if resp.status_code in (200, 201):
                     supabase_auth_success = True
                     logger.info(f"Successfully registered user in Supabase Auth: {user.email}")
+                elif resp.status_code == 400 and ("already" in resp.text.lower() or "use another" in resp.text.lower()):
+                    # User exists in Supabase, but was deleted from public.users locally
+                    supabase_auth_success = True
+                    logger.info(f"User already registered in Supabase Auth, continuing with local creation: {user.email}")
                 else:
                     logger.error(f"Supabase Auth signup returned: {resp.status_code} - {resp.text}")
                     try:
                         err_data = resp.json()
                         error_msg = err_data.get("msg", "Failed to register with authentication service.")
+                        if "already" in error_msg.lower():
+                            error_msg = "Email already exists. Please login using your password."
                     except:
                         error_msg = "Failed to register with authentication service."
                     raise HTTPException(status_code=resp.status_code, detail=error_msg)
@@ -285,42 +291,31 @@ async def login_user(
         )
 
     # Check verification status
-    try:
-        res = await db.execute(
-            text("SELECT email_confirmed_at FROM auth.users WHERE email = :email"),
-            {"email": db_user.email}
-        )
-        row = res.fetchone()
-        if row:
-            email_confirmed_at = row[0]
-            if not email_confirmed_at:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Please verify your email address before logging in."
-                )
-            else:
-                # Sync verified state to our local public.users table
-                if not db_user.is_verified:
-                    try:
-                        db_user.is_verified = True
-                        await db.commit()
-                    except Exception as sync_err:
-                        logger.warning(f"Could not sync verification status to local db: {sync_err}")
-        else:
-            # Fallback for users not in auth.users (e.g. old users)
-            if not db_user.is_verified:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Please verify your email address before logging in."
-                )
-    except Exception as e:
-        logger.error(f"Error checking Supabase Auth verification state: {e}")
-        # Fallback to local is_verified flag
-        if not db_user.is_verified:
-            raise HTTPException(
-                status_code=400,
-                detail="Please verify your email address before logging in."
+    is_user_verified = db_user.is_verified
+
+    if not is_user_verified:
+        try:
+            res = await db.execute(
+                text("SELECT email_confirmed_at FROM auth.users WHERE email = :email"),
+                {"email": db_user.email}
             )
+            row = res.fetchone()
+            if row and row[0]: # email_confirmed_at is not None
+                is_user_verified = True
+                # Sync verified state to our local public.users table
+                try:
+                    db_user.is_verified = True
+                    await db.commit()
+                except Exception as sync_err:
+                    logger.warning(f"Could not sync verification status to local db: {sync_err}")
+        except Exception as e:
+            logger.error(f"Error checking Supabase Auth verification state: {e}")
+
+    if not is_user_verified:
+        raise HTTPException(
+            status_code=400,
+            detail="Please verify your email address before logging in."
+        )
 
     access_token = create_access_token({
         "sub": db_user.email,
