@@ -281,41 +281,73 @@ async def login_user(
             detail="Invalid email"
         )
 
-    if not verify_password(
-        form_data.password,
-        db_user.password
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid password"
-        )
-
-    # Check verification status
-    is_user_verified = db_user.is_verified
-
-    if not is_user_verified:
+    supabase_url = os.environ.get("SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    supabase_login_success = False
+    
+    if supabase_anon_key:
+        import httpx
         try:
-            res = await db.execute(
-                text("SELECT email_confirmed_at FROM auth.users WHERE email = :email"),
-                {"email": db_user.email}
-            )
-            row = res.fetchone()
-            if row and row[0]: # email_confirmed_at is not None
-                is_user_verified = True
-                # Sync verified state to our local public.users table
-                try:
-                    db_user.is_verified = True
-                    await db.commit()
-                except Exception as sync_err:
-                    logger.warning(f"Could not sync verification status to local db: {sync_err}")
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{supabase_url}/auth/v1/token?grant_type=password",
+                    headers={
+                        "apikey": supabase_anon_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "email": form_data.username,
+                        "password": form_data.password
+                    }
+                )
+                if resp.status_code == 200:
+                    supabase_login_success = True
+                    logger.info(f"Successfully authenticated user with Supabase Auth: {form_data.username}")
+                elif resp.status_code == 400:
+                    err_json = resp.json()
+                    err_msg = err_json.get("error_description", "") or err_json.get("msg", "") or err_json.get("error", "")
+                    if "confirm" in err_msg.lower() or "verify" in err_msg.lower() or "confirmed" in err_msg.lower():
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Please verify your email address before logging in."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Invalid email or password"
+                        )
+                else:
+                    logger.error(f"Supabase Auth login returned: {resp.status_code} - {resp.text}")
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error checking Supabase Auth verification state: {e}")
+            logger.error(f"Error authenticating with Supabase Auth: {e}")
 
-    if not is_user_verified:
-        raise HTTPException(
-            status_code=400,
-            detail="Please verify your email address before logging in."
-        )
+    # If authenticated via Supabase, sync back to local database
+    if supabase_login_success:
+        if not db_user.is_verified:
+            try:
+                db_user.is_verified = True
+                await db.commit()
+            except Exception as sync_err:
+                logger.warning(f"Could not sync verification status to local db: {sync_err}")
+    else:
+        # Fallback to local authentication if Supabase is not configured or failed
+        if not verify_password(
+            form_data.password,
+            db_user.password
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid password"
+            )
+
+        if not db_user.is_verified:
+            raise HTTPException(
+                status_code=400,
+                detail="Please verify your email address before logging in."
+            )
 
     access_token = create_access_token({
         "sub": db_user.email,
