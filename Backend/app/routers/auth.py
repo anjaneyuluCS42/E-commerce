@@ -278,7 +278,7 @@ async def login_user(
     if not db_user:
         raise HTTPException(
             status_code=400,
-            detail="Invalid email"
+            detail="Invalid email or password"
         )
 
     supabase_url = os.environ.get("SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co")
@@ -313,10 +313,8 @@ async def login_user(
                             detail="Please verify your email address before logging in."
                         )
                     else:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Invalid email or password"
-                        )
+                        # Log warning and fall back to local DB authentication for seeded users
+                        logger.warning(f"Supabase login failed for {form_data.username}: {err_msg}. Trying local authentication fallback.")
                 else:
                     logger.error(f"Supabase Auth login returned: {resp.status_code} - {resp.text}")
         except HTTPException:
@@ -340,7 +338,7 @@ async def login_user(
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Invalid password"
+                detail="Invalid email or password"
             )
 
         if not db_user.is_verified:
