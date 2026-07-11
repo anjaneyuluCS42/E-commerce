@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ChatbotButton from './ChatbotButton';
 import ChatbotWindow from './ChatbotWindow';
 import { fetchMockChatResponse } from '../../services/mockChatService';
+import { API_BASE_URL } from '../../constants';
 
 export interface ProductRecommendation {
   id: number;
@@ -108,7 +109,7 @@ const Chatbot: React.FC = () => {
     let activeMessages = [...updatedMessages, aiMsg];
     setMessages(activeMessages);
 
-    const apiBaseUrl = import.meta.env.VITE_API_URL === '/api' ? '/api' : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
+    const apiBaseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
     const streamUrl = `${apiBaseUrl}/ai/chat/stream`;
 
     try {

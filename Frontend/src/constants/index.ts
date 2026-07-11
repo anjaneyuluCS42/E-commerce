@@ -1,8 +1,25 @@
 // Application-wide constants
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  // If the env variable is set and is a full URL, use it
+  if (envUrl && envUrl.startsWith('http')) {
+    return envUrl;
+  }
+  // Check if we are running in production/on a deployed host
+  const isLocalhost = 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1';
+  if (!isLocalhost) {
+    return 'https://e-commerce-pice.onrender.com';
+  }
+  // Otherwise, in development, Vite handles proxy of /api
+  return envUrl || 'http://localhost:8000';
+};
 
-export const IMAGE_BASE_URL = `${API_BASE_URL}/`;
+export const API_BASE_URL = getApiBaseUrl();
+
+export const IMAGE_BASE_URL = API_BASE_URL.endsWith('/') ? API_BASE_URL : `${API_BASE_URL}/`;
 
 export const QUERY_KEYS = {
   products: ['products'] as const,

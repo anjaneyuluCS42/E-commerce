@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import websocketService from '../services/websocketService';
 import { toast } from '../store/toastStore';
+import { API_BASE_URL } from '../constants';
 
 export const WebSocketContext = createContext(null);
 
@@ -71,7 +72,7 @@ export const WebSocketProvider = ({ children }) => {
     setError(null);
 
     let url;
-    const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiBaseUrl = API_BASE_URL;
 
     if (apiBaseUrl.startsWith('http')) {
       const parsedUrl = new URL(apiBaseUrl);

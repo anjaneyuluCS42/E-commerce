@@ -1,4 +1,5 @@
 // Shared utility / formatting helpers
+import { API_BASE_URL } from '../constants';
 
 /**
  * Format a number as Indian Rupee currency.
@@ -41,7 +42,7 @@ export function getImageUrl(imagePath?: string | null): string {
     return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="250" height="250" viewBox="0 0 250 250"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="%239ca3af">No Image Available</text></svg>';
   }
   if (imagePath.startsWith('http')) return imagePath;
-  const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const apiBaseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
   return `${apiBaseUrl}/${imagePath}`;
 }
 

@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { toast } from '../store/toastStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../constants';
 
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 90000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,6 +19,10 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Set timer to show a friendly wake-up message if the request takes more than 4.5 seconds
+    config.wakeUpTimeout = setTimeout(() => {
+      toast.info('Connecting to server... (The backend might be booting up from sleep, please wait up to 1 minute)');
+    }, 4500);
     return config;
   },
   (error) => Promise.reject(error)
@@ -26,8 +30,18 @@ api.interceptors.request.use(
 
 // Add response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Clear the wake-up timeout
+    if (response.config && response.config.wakeUpTimeout) {
+      clearTimeout(response.config.wakeUpTimeout);
+    }
+    return response;
+  },
   async (error) => {
+    // Clear the wake-up timeout
+    if (error.config && error.config.wakeUpTimeout) {
+      clearTimeout(error.config.wakeUpTimeout);
+    }
     const originalRequest = error.config;
     let message = 'An unexpected error occurred.';
 
