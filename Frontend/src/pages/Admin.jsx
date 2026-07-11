@@ -532,7 +532,7 @@ function AdminSupportChat() {
     activeUsers.forEach(async (uid) => {
       if (uid && !usernames[uid]) {
         try {
-          const response = await api.get(`/auth/users/${uid}`);
+          const response = await api.get(`/auth/users/${uid}`, { skipToast: true });
           if (response.data && response.data.username) {
             setUsernames((prev) => ({
               ...prev,
@@ -541,6 +541,11 @@ function AdminSupportChat() {
           }
         } catch (err) {
           console.error(`Failed to fetch username for user ID ${uid}:`, err);
+          // Set fallback name to prevent infinite network requests loop
+          setUsernames((prev) => ({
+            ...prev,
+            [uid]: `Customer #${uid}`,
+          }));
         }
       }
     });

@@ -43,17 +43,18 @@ api.interceptors.response.use(
       clearTimeout(error.config.wakeUpTimeout);
     }
     const originalRequest = error.config;
+    const skipToast = originalRequest?.skipToast || error.config?.skipToast;
     let message = 'An unexpected error occurred.';
 
     if (error.code === 'ECONNABORTED') {
       message = 'Request timeout. Please check your internet connection.';
-      toast.error(message);
+      if (!skipToast) toast.error(message);
       return Promise.reject(error);
     }
 
     if (!error.response) {
       message = 'Network error. Please check if backend is running.';
-      toast.error(message);
+      if (!skipToast) toast.error(message);
       return Promise.reject(error);
     }
 
@@ -94,15 +95,15 @@ api.interceptors.response.use(
         }
       }
     } else if (status === 403) {
-      toast.warning(message || 'Access Forbidden');
+      if (!skipToast) toast.warning(message || 'Access Forbidden');
     } else if (status === 429) {
-      toast.warning(message || 'Too many requests. Please slow down.');
+      if (!skipToast) toast.warning(message || 'Too many requests. Please slow down.');
     } else if (status === 404) {
-      toast.error(message || 'Resource Not Found');
+      if (!skipToast) toast.error(message || 'Resource Not Found');
     } else if (status >= 500) {
-      toast.error(message || 'Server Error. Please try again later.');
+      if (!skipToast) toast.error(message || 'Server Error. Please try again later.');
     } else {
-      toast.error(message);
+      if (!skipToast) toast.error(message);
     }
 
     return Promise.reject(error);
