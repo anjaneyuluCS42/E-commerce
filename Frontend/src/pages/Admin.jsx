@@ -517,7 +517,7 @@ function AdminSupportChat() {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
   const [usernames, setUsernames] = useState({});
 
   const activeUsers = Array.from(
@@ -552,7 +552,12 @@ function AdminSupportChat() {
   }, [activeUsers, usernames]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [chatMessages, typingStates, selectedUser]);
 
   const selectedMessages = chatMessages.filter(
@@ -645,7 +650,7 @@ function AdminSupportChat() {
               {isUserTyping && <span className="text-green-500 font-medium italic animate-pulse">typing...</span>}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
               {selectedMessages.map((msg) => {
                 const isMe = msg.sender_id === 1;
                 return (
@@ -664,7 +669,6 @@ function AdminSupportChat() {
                   </div>
                 );
               })}
-              <div ref={messagesEndRef} />
             </div>
 
             <form onSubmit={handleSend} className="p-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex gap-2 items-center">

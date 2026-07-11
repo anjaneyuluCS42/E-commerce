@@ -23,12 +23,16 @@ const ChatbotWindow: React.FC<ChatbotWindowProps> = ({
 }) => {
   const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom of message history
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   useEffect(() => {
@@ -284,8 +288,6 @@ const ChatbotWindow: React.FC<ChatbotWindowProps> = ({
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Form */}
