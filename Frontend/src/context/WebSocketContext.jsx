@@ -1,13 +1,15 @@
-import { createContext, useState, useEffect, useRef, useCallback } from 'react';
+import { createContext, useState, useEffect, useRef, useCallback, useContext } from 'react';
 import websocketService from '../services/websocketService';
 import { toast } from '../store/toastStore';
 import { API_BASE_URL } from '../constants';
+import { AuthContext } from './AuthContext';
 
 export const WebSocketContext = createContext(null);
 
 const MAX_RETRIES = 5;
 
 export const WebSocketProvider = ({ children }) => {
+  const { user } = useContext(AuthContext);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [lastMessage, setLastMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -238,13 +240,18 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, [connect]);
 
-  // Connect automatically if token exists on mount, cleanup on unmount.
+  // Connect automatically if token exists and user is authenticated. Disconnects if logged out.
   // Uses a 50ms delay to prevent connecting and immediately disconnecting in React Strict Mode.
   useEffect(() => {
     let active = true;
     const delayTimer = setTimeout(() => {
-      if (active && localStorage.getItem('token')) {
-        connect();
+      const token = localStorage.getItem('token');
+      if (active) {
+        if (token && user) {
+          connect();
+        } else if (!token || !user) {
+          disconnect();
+        }
       }
     }, 50);
 
@@ -254,7 +261,7 @@ export const WebSocketProvider = ({ children }) => {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       websocketService.disconnect();
     };
-  }, [connect]);
+  }, [connect, disconnect, user]);
 
   const value = {
     connect,
