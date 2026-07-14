@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, Index, text, Computed
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, Index, text, Computed, ARRAY
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -33,6 +33,7 @@ class Product(Base):
     price = Column(Float)
     stock = Column(Integer, default=0)
     image_url = Column(String, nullable=True)
+    images = Column(ARRAY(String), server_default='{}')
 
     # Precomputed weighted search vector for full text search
     search_vector = Column(

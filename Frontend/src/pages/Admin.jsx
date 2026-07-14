@@ -33,7 +33,18 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
     initial || { name: '', description: '', price: '', stock: '', category: '' }
   );
   const [generating, setGenerating] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
+
+  useEffect(() => {
+    if (imageFiles.length === 0) {
+      setPreviewUrls([]);
+      return;
+    }
+    const urls = imageFiles.map(file => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [imageFiles]);
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -65,7 +76,7 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
       ...form,
       price: parseFloat(form.price),
       stock: parseInt(form.stock),
-    }, imageFile);
+    }, imageFiles);
   };
 
   const inputClass =
@@ -126,24 +137,53 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Product Image</label>
-            {initial && initial.image_url && (
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-xs text-gray-400 font-semibold">Current Image:</span>
-                <img
-                  src={getImageUrl(initial.image_url)}
-                  alt="Current"
-                  className="w-10 h-10 object-cover rounded-lg border border-gray-200"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://placehold.co/100x100/e2e8f0/475569?text=ShopHub';
-                  }}
-                />
+            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Product Images (Upload up to 5 images)</label>
+            {initial && initial.images && initial.images.length > 0 && (
+              <div className="mb-3">
+                <span className="text-xs text-gray-400 font-bold block mb-1">Current Images:</span>
+                <div className="flex gap-2 flex-wrap">
+                  {initial.images.map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={getImageUrl(img)}
+                      alt={`Current ${idx}`}
+                      className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://placehold.co/100x100/e2e8f0/475569?text=ShopHub';
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {previewUrls.length > 0 && (
+              <div className="mb-3">
+                <span className="text-xs text-gray-400 font-bold block mb-1">New Image Previews:</span>
+                <div className="flex gap-2 flex-wrap">
+                  {previewUrls.map((url, idx) => (
+                    <img
+                      key={idx}
+                      src={url}
+                      alt={`Preview ${idx}`}
+                      className="w-12 h-12 object-cover rounded-lg border border-blue-500"
+                    />
+                  ))}
+                </div>
               </div>
             )}
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => setImageFile(e.target.files[0])}
+              multiple
+              onChange={(e) => {
+                const selectedFiles = Array.from(e.target.files);
+                if (selectedFiles.length > 5) {
+                  toast.warning('You can upload a maximum of 5 images. Only the first 5 will be selected.');
+                  setImageFiles(selectedFiles.slice(0, 5));
+                } else {
+                  setImageFiles(selectedFiles);
+                }
+              }}
               className={inputClass}
             />
           </div>
@@ -202,7 +242,7 @@ export default function Admin() {
     }
   };
 
-  const handleCreate = async (data, imageFile) => {
+  const handleCreate = async (data, imageFiles) => {
     try {
       const filteredData = {
         name: data.name,
@@ -211,8 +251,8 @@ export default function Admin() {
         stock: parseInt(data.stock),
       };
       const newProduct = await createProduct(filteredData);
-      if (imageFile) {
-        await productService.uploadImage(newProduct.id, imageFile);
+      if (imageFiles && imageFiles.length > 0) {
+        await productService.uploadImage(newProduct.id, imageFiles);
       }
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products });
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -224,7 +264,7 @@ export default function Admin() {
     }
   };
 
-  const handleUpdate = async (data, imageFile) => {
+  const handleUpdate = async (data, imageFiles) => {
     try {
       const filteredData = {
         name: data.name,
@@ -233,8 +273,8 @@ export default function Admin() {
         stock: parseInt(data.stock),
       };
       await updateProduct({ id: editProduct.id, data: filteredData });
-      if (imageFile) {
-        await productService.uploadImage(editProduct.id, imageFile);
+      if (imageFiles && imageFiles.length > 0) {
+        await productService.uploadImage(editProduct.id, imageFiles);
       }
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.products });
       queryClient.invalidateQueries({ queryKey: ['products'] });

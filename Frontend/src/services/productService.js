@@ -51,11 +51,14 @@ const productService = {
     }
   },
 
-  // Upload product image
-  uploadImage: async (productId, imageFile) => {
+  // Upload product images (accepts single file or array of files)
+  uploadImage: async (productId, imageFiles) => {
     try {
       const formData = new FormData();
-      formData.append('file', imageFile);
+      const files = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
       
       const response = await api.post(`/products/${productId}/upload-image`, formData, {
         headers: {

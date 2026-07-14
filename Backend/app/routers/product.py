@@ -189,6 +189,7 @@ async def get_products(
             "price": p.price,
             "stock": p.stock,
             "image_url": p.image_url,
+            "images": p.images or [],
             "owner_id": p.owner_id,
             "category_id": p.category_id,
             "status": p.status,
@@ -323,7 +324,7 @@ async def delete_product(
 async def upload_product_image(
     request: Request,
     product_id: int,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -350,31 +351,39 @@ async def upload_product_image(
             detail="Not authorized"
         )
 
-    # IMAGE VALIDATION
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=400,
-            detail="Only image files allowed"
-        )
+    filepaths = []
+    for file in files:
+        # IMAGE VALIDATION
+        if not file.content_type or not file.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only image files allowed. File '{file.filename}' is invalid."
+            )
 
-    # UNIQUE FILE NAME
-    filename = f"{uuid.uuid4()}_{file.filename}"
+        # UNIQUE FILE NAME
+        filename = f"{uuid.uuid4()}_{file.filename}"
+        filepath = f"uploads/product_images/{filename}"
 
-    filepath = f"uploads/product_images/{filename}"
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        filepaths.append(filepath)
 
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    product.image_url = filepath
+    product.images = filepaths
+    if filepaths:
+        product.image_url = filepaths[0]
 
     await db.commit()
 
     # CLEAR CACHE
     await clear_products_cache()
 
+    await db.refresh(product)
+
     return {
-        "message": "Image uploaded",
-        "image_url": filepath
+        "message": "Images uploaded",
+        "image_url": product.image_url,
+        "images": product.images
     }
 
 @router.post("/import", response_model=dict)

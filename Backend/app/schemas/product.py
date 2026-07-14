@@ -26,6 +26,7 @@ class ProductResponse(ProductCreate):
     owner_id: int
     category_id: int | None = None
     image_url: str | None = None
+    images: list[str] = []
 
     class Config:
         from_attributes = True

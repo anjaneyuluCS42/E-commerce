@@ -72,6 +72,7 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [loading, setLoading] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const { data: product, loading: fetching, error } = useFetch(
     () => productService.getProductById(id),
@@ -87,9 +88,22 @@ export default function ProductDetails() {
     ? getRelatedProducts(product, allProducts)
     : [];
 
+  const productImages = product && product.images && product.images.length > 0
+    ? product.images
+    : product ? [product.image_url] : [];
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    setActiveImageIndex(0);
   }, [id]);
+
+  useEffect(() => {
+    if (productImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveImageIndex((prev) => (prev + 1) % productImages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeImageIndex, productImages.length]);
 
   const rating = product ? ((product.id % 15) * 0.1 + 3.5).toFixed(1) : 0;
   const reviewsCount = product ? (product.id * 37) % 450 + 12 : 0;
@@ -174,24 +188,55 @@ export default function ProductDetails() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
 
-            {/* Left: Product Image */}
-            <div className="relative bg-gray-50 flex items-center justify-center p-12 border-r border-gray-100 min-h-96">
-              <img
-                src={getImageUrl(product.image_url)}
-                alt={product.name}
-                className="max-h-80 max-w-full object-contain transition-transform duration-500 hover:scale-105"
-              />
-              {isOutOfStock && (
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-xxs flex items-center justify-center">
-                  <span className="bg-red-600 text-white font-black text-sm px-6 py-2.5 rounded-full shadow-lg">
-                    Out of Stock
+            {/* Left: Product Image Slider & Thumbnails */}
+            <div className="relative bg-gray-50 flex flex-col items-center justify-center p-8 border-r border-gray-100 min-h-96">
+              {/* Main Image Slider */}
+              <div className="w-full flex-grow flex items-center justify-center min-h-[320px] relative">
+                <img
+                  src={getImageUrl(productImages[activeImageIndex])}
+                  alt={product.name}
+                  className="max-h-80 max-w-full object-contain transition-all duration-500 ease-in-out transform hover:scale-105"
+                  key={activeImageIndex}
+                />
+                {isOutOfStock && (
+                  <div className="absolute inset-0 bg-white/60 backdrop-blur-xxs flex items-center justify-center">
+                    <span className="bg-red-600 text-white font-black text-sm px-6 py-2.5 rounded-full shadow-lg">
+                      Out of Stock
+                    </span>
+                  </div>
+                )}
+                {stockWarning && (
+                  <span className="absolute top-4 left-4 bg-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow">
+                    Only {product.stock} Left!
                   </span>
+                )}
+              </div>
+
+              {/* Thumbnails Row */}
+              {productImages.length > 1 && (
+                <div className="flex gap-2.5 mt-6 overflow-x-auto py-1 scrollbar-none justify-center w-full">
+                  {productImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImageIndex(idx)}
+                      onMouseEnter={() => setActiveImageIndex(idx)}
+                      className={`w-14 h-14 rounded-xl overflow-hidden bg-white border-2 transition-all duration-200 shadow-sm transform hover:scale-105 active:scale-95 ${
+                        activeImageIndex === idx
+                          ? 'border-blue-600 ring-2 ring-blue-500/20'
+                          : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'
+                      }`}
+                    >
+                      <img
+                        src={getImageUrl(img)}
+                        alt={`Thumbnail ${idx}`}
+                        className="w-full h-full object-contain p-1"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://placehold.co/100x100/e2e8f0/475569?text=ShopHub';
+                        }}
+                      />
+                    </button>
+                  ))}
                 </div>
-              )}
-              {stockWarning && (
-                <span className="absolute top-4 left-4 bg-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow">
-                  Only {product.stock} Left!
-                </span>
               )}
             </div>
 

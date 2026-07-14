@@ -180,15 +180,30 @@ async def seed_data():
         }
 
         # 5. Insert all products
+        import glob
+        import random
+        import os
+        
+        all_image_files = glob.glob("uploads/product_images/*")
+        all_image_files = [f.replace("\\", "/") for f in all_image_files if os.path.isfile(f)]
+        
         for category_name, list_of_products in products_data.items():
             cat_id = categories_dict[category_name]
             for name, desc, price, stock in list_of_products:
+                sampled_images = []
+                cover_image = None
+                if all_image_files:
+                    count = min(len(all_image_files), random.randint(4, 5))
+                    sampled_images = random.sample(all_image_files, count)
+                    cover_image = sampled_images[0]
+                
                 prod = Product(
                     name=name,
                     description=desc,
                     price=price,
                     stock=stock,
-                    image_url=None,
+                    image_url=cover_image,
+                    images=sampled_images,
                     is_active=True,
                     owner_id=admin_user.id,
                     category_id=cat_id
