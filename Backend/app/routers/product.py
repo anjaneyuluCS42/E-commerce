@@ -43,7 +43,7 @@ async def clear_products_cache():
 
 
 # CREATE PRODUCT
-@router.post("/", response_model=ProductResponse)
+@router.post("", response_model=ProductResponse)
 async def create_product(
     product: ProductCreate,
     db: AsyncSession = Depends(get_db),
@@ -73,7 +73,7 @@ from typing import Optional
 from app.models.category import Category
 
 # GET ALL PRODUCTS (Advanced Search & Filtering)
-@router.get("/", response_model=list[ProductResponse])
+@router.get("", response_model=list[ProductResponse])
 @limiter.limit("30/minute")
 async def get_products(
     request: Request,

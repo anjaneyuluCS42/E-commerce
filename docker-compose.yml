@@ -1,129 +1,184 @@
 version: '3.8'
 
 services:
-  # Database Service
+  # ==========================================
+  # Database Service (PostgreSQL 16)
+  # ==========================================
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: ecommerce_postgres
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: ecommerce
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
+      # Named volume for database files persistence
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Use pg_isready utility to verify postgres socket is ready for traffic
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ecommerce_network
 
-  # Redis Broker and Result Backend Service
+  # ==========================================
+  # Cache & Broker Service (Redis 7)
+  # ==========================================
   redis:
     image: redis:7-alpine
     container_name: ecommerce_redis
     restart: always
-    ports:
-      - "6379:6379"
     volumes:
+      # Named volume for cache replication state persistence
       - redis_data:/data
+    healthcheck:
+      # Use redis-cli to send a ping request and expect a PONG reply
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - ecommerce_network
 
+  # ==========================================
   # FastAPI Web Backend Application
+  # ==========================================
   backend:
     build:
       context: ./Backend
       dockerfile: Dockerfile
+    image: ecommerce-backend:latest
     container_name: ecommerce_backend
     restart: always
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
+      # Mount application directory for code reloading if needed
       - ./Backend:/app
       - uploads_volume:/app/uploads
       - invoices_volume:/app/invoices
     ports:
-      - "8000:8000"
+      # Expose backend API to host network
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      # Use internal Docker container names for service connections
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=supersecretkey
-      - ALGORITHM=HS256
-      - ENVIRONMENT=production
-      - ROOT_PATH=/api
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Probe the FastAPI application health route via standard Python client libraries
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - ecommerce_network
 
-  # High Priority Celery Worker (Processes Order Confirmation Emails)
-  celery_worker_high:
+  # ==========================================
+  # Celery Background Worker
+  # ==========================================
+  celery-worker:
     build:
       context: ./Backend
       dockerfile: Dockerfile
-    container_name: ecommerce_celery_worker_high
+    image: ecommerce-backend:latest
+    container_name: ecommerce_celery_worker
     restart: always
-    command: celery -A app.tasks.celery_worker.celery worker -Q high_priority -c 2 --loglevel=info
+    # Listens to all task queues: high priority, default, and low priority
+    command: celery -A app.tasks.celery_worker.celery worker -Q high_priority,default,low_priority -c 4 --loglevel=info
     volumes:
       - ./Backend:/app
       - uploads_volume:/app/uploads
       - invoices_volume:/app/invoices
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=supersecretkey
-      - ALGORITHM=HS256
     depends_on:
-      - redis
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_network
 
-  # Default / Low Priority Worker (Invoices and Bulk CSV Imports)
-  celery_worker_default:
-    build:
-      context: ./Backend
-      dockerfile: Dockerfile
-    container_name: ecommerce_celery_worker_default
-    restart: always
-    command: celery -A app.tasks.celery_worker.celery worker -Q default,low_priority -c 4 --loglevel=info
-    volumes:
-      - ./Backend:/app
-      - uploads_volume:/app/uploads
-      - invoices_volume:/app/invoices
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=supersecretkey
-      - ALGORITHM=HS256
-    depends_on:
-      - redis
-      - postgres
-
+  # ==========================================
   # Celery Beat Scheduler
-  celery_beat:
+  # ==========================================
+  celery-beat:
     build:
       context: ./Backend
       dockerfile: Dockerfile
+    image: ecommerce-backend:latest
     container_name: ecommerce_celery_beat
     restart: always
+    # Triggers background cron and interval tasks
     command: celery -A app.tasks.celery_worker.celery beat --loglevel=info
     volumes:
       - ./Backend:/app
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@postgres:5432/ecommerce
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=supersecretkey
-      - ALGORITHM=HS256
     depends_on:
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ecommerce_network
 
-  # React Frontend client application
+  # ==========================================
+  # React Frontend served via Nginx
+  # ==========================================
   frontend:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
+    image: ecommerce-frontend:latest
     container_name: ecommerce_frontend
     restart: always
     ports:
-      - "80:80"
+      # Expose Nginx frontend to host network
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # Query the public index route via Nginx
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ecommerce_network
 
+# ==========================================
+# Named Volumes Configuration
+# ==========================================
 volumes:
   postgres_data:
   redis_data:
   uploads_volume:
   invoices_volume:
+
+# ==========================================
+# Isolated Networks Configuration
+# ==========================================
+networks:
+  ecommerce_network:
+    driver: bridge

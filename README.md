@@ -60,17 +60,120 @@ E-commerce/
 
 ---
 
-## 🚀 Quick Start (Local Setup)
+## 🐳 Docker Deployment & Orchestration Guide
 
-The easiest way to boot the complete environment (Postgres, Redis, Backend, Workers, Beat, and Frontend) is via Docker Compose.
+This section explains how to get the entire full-stack application up and running locally in isolated containers using Docker.
 
-### Option A: Using Docker Compose (Recommended)
-1. Clone the repository and run:
-   ```bash
-   docker-compose up --build
-   ```
-2. The React client will be available at [http://localhost](http://localhost) (mapped to port 80).
-3. The FastAPI interactive Swagger API will be available at [http://localhost:8000/docs](http://localhost:8000/docs).
+### 📋 Prerequisites
+
+Before starting, ensure you have the following installed on your machine:
+* **Git**: To clone the project repository.
+* **Docker Desktop**: The daemon engine used to run containers.
+
+---
+
+### 💿 Docker Desktop Installation
+
+Depending on your Operating System, download and install Docker Desktop:
+
+* **Windows**: Download the installer from the [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) portal. Ensure **WSL 2 (Windows Subsystem for Linux)** is enabled on your machine and selected during the installation.
+* **macOS**: Download from [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/) (select Intel or Apple Silicon based on your processor).
+* **Linux**: Follow the guide for your distribution at [Docker Engine Installation](https://docs.docker.com/engine/install/).
+
+*Once installed, open Docker Desktop to verify the service daemon is actively running.*
+
+---
+
+### 🚀 Getting Started (Step-by-Step)
+
+#### 1. Clone the Repository
+Open a terminal (or PowerShell on Windows) and clone the repository:
+```bash
+git clone https://github.com/anjaneuyuluCS42/E-commerce.git
+cd E-commerce
+```
+
+#### 2. Configure Environment Variables
+Copy or create a `.env` configuration at the root of the repository:
+```bash
+cp .env.example .env
+```
+*(Refer to the root [.env](file:///d:/knowledge_factory_internship/E-commerce/.env) file to configure database credentials, ports, and API keys).*
+
+#### 3. Build and Run everything
+To build the Docker images and start all six services in the foreground, run:
+```bash
+docker compose up --build
+```
+*Alternatively, you can run in detached mode (background) by adding the `-d` flag:*
+```bash
+docker compose up --build -d
+```
+
+---
+
+### 🌐 Accessing the Application
+
+Once all health checks pass and containers show `healthy` (`docker compose ps`), open your web browser:
+* **React Frontend SPA**: Accessible at [http://localhost](http://localhost) (Port `80`).
+* **FastAPI Backend (Interactive Swagger Docs)**: Accessible at [http://localhost:8000/docs](http://localhost:8000/docs) (Port `8000`).
+
+---
+
+### ⚙️ Managing the Container Lifecycle
+
+#### Stop Containers (Keep Data)
+To halt all running containers without destroying database volumes or caches:
+```bash
+docker compose stop
+```
+
+#### Start Containers (Stopped State)
+To resume execution of previously stopped containers:
+```bash
+docker compose start
+```
+
+#### Stop and Remove Containers (Keep Volume Data)
+To stop running containers and remove networks and container states (keeps database files safe):
+```bash
+docker compose down
+```
+
+#### Stop and Remove Everything (Delete Volume Data)
+To reset the environment completely by wiping container volumes, networks, and persistent databases:
+```bash
+docker compose down -v
+```
+
+#### Rebuild Containers
+If you modify configuration files (such as `package.json`, `requirements.txt`, or the Dockerfiles themselves) and want to force a clean dependency build:
+```bash
+docker compose build --no-cache
+docker compose up --build -d
+```
+
+#### View Application Logs
+To stream combined logs from all active services:
+```bash
+docker compose logs -f
+```
+To view logs for a specific service (e.g. only the backend api):
+```bash
+docker compose logs -f backend
+```
+
+---
+
+### 🛠️ Useful Docker CLI Commands
+
+| Action | Command |
+| :--- | :--- |
+| **List Running Services** | `docker compose ps` |
+| **List Available Images** | `docker images` |
+| **Check System Resource Usage** | `docker stats` |
+| **Clean Up Unused Container Cache** | `docker system prune -a --volumes` |
+| **Open Interactive Shell inside Container** | `docker compose exec backend sh` |
 
 ---
 
