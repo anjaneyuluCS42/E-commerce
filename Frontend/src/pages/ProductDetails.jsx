@@ -9,7 +9,7 @@ import ProductCard from '../components/ProductCard.tsx';
 import { getImageUrl } from '../utils/formatters.ts';
 import {
   FaStar, FaStarHalfAlt, FaShoppingCart, FaBolt, FaCheckCircle,
-  FaShieldAlt, FaUndo, FaTruck, FaHeadset, FaChevronLeft,
+  FaShieldAlt, FaUndo, FaTruck, FaHeadset, FaChevronLeft, FaChevronRight,
 } from 'react-icons/fa';
 
 const getRelatedProducts = (currentProduct, allProducts) => {
@@ -191,13 +191,31 @@ export default function ProductDetails() {
             {/* Left: Product Image Slider & Thumbnails */}
             <div className="relative bg-gray-50 flex flex-col items-center justify-center p-8 border-r border-gray-100 min-h-96">
               {/* Main Image Slider */}
-              <div className="w-full flex-grow flex items-center justify-center min-h-[320px] relative">
+              <div className="w-full flex-grow flex items-center justify-center min-h-[320px] relative group">
                 <img
                   src={getImageUrl(productImages[activeImageIndex])}
                   alt={product.name}
                   className="max-h-80 max-w-full object-contain transition-all duration-500 ease-in-out transform hover:scale-105"
                   key={activeImageIndex}
                 />
+                {productImages.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setActiveImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length)}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200 p-2 rounded-full shadow-md border border-gray-100 dark:border-gray-700 transition-all opacity-0 group-hover:opacity-100 hover:scale-105 active:scale-95 cursor-pointer z-10"
+                      title="Previous Image"
+                    >
+                      <FaChevronLeft className="text-sm" />
+                    </button>
+                    <button
+                      onClick={() => setActiveImageIndex((prev) => (prev + 1) % productImages.length)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200 p-2 rounded-full shadow-md border border-gray-100 dark:border-gray-700 transition-all opacity-0 group-hover:opacity-100 hover:scale-105 active:scale-95 cursor-pointer z-10"
+                      title="Next Image"
+                    >
+                      <FaChevronRight className="text-sm" />
+                    </button>
+                  </>
+                )}
                 {isOutOfStock && (
                   <div className="absolute inset-0 bg-white/60 backdrop-blur-xxs flex items-center justify-center">
                     <span className="bg-red-600 text-white font-black text-sm px-6 py-2.5 rounded-full shadow-lg">

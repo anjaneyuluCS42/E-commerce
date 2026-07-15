@@ -369,9 +369,16 @@ async def upload_product_image(
         
         filepaths.append(filepath)
 
-    product.images = filepaths
-    if filepaths:
-        product.image_url = filepaths[0]
+    existing_images = list(product.images) if product.images else []
+    for filepath in filepaths:
+        if filepath not in existing_images:
+            existing_images.append(filepath)
+            
+    # Cap at 5 images
+    existing_images = existing_images[:5]
+    product.images = existing_images
+    if existing_images:
+        product.image_url = existing_images[0]
 
     await db.commit()
 
@@ -384,6 +391,50 @@ async def upload_product_image(
         "message": "Images uploaded",
         "image_url": product.image_url,
         "images": product.images
+    }
+
+# DELETE PRODUCT IMAGES (Admin only)
+@router.delete("/{product_id}/images")
+async def delete_product_images(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id
+        )
+    )
+
+    product = result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found"
+        )
+
+    # OWNER CHECK
+    if product.owner_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized"
+        )
+
+    product.images = []
+    product.image_url = None
+
+    await db.commit()
+
+    # CLEAR CACHE
+    await clear_products_cache()
+
+    await db.refresh(product)
+
+    return {
+        "message": "Images cleared",
+        "image_url": None,
+        "images": []
     }
 
 @router.post("/import", response_model=dict)

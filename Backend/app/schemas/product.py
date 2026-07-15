@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field, field_validator
 import re
-from html import escape
+from html import escape, unescape
 
 def sanitize_string(value: str) -> str:
     # Remove HTML tags to prevent HTML injection
     clean = re.sub(r'<[^>]*>', '', value)
-    # Escape characters to prevent XSS injection
-    return escape(clean.strip())
+    # Unescape first to prevent double escaping of already escaped entities
+    return escape(unescape(clean.strip()))
 
 
 class ProductBase(BaseModel):

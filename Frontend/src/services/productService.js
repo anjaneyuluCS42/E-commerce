@@ -70,6 +70,16 @@ const productService = {
       throw error.response?.data || error.message;
     }
   },
+
+  // Clear all images for a product
+  clearImages: async (productId) => {
+    try {
+      const response = await api.delete(`/products/${productId}/images`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
 };
 
 export default productService;

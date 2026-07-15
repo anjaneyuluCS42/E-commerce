@@ -35,6 +35,19 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
   const [generating, setGenerating] = useState(false);
   const [imageFiles, setImageFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [existingImages, setExistingImages] = useState(initial?.images || []);
+
+  const handleClearImages = async () => {
+    if (!initial?.id) return;
+    if (!confirm('Are you sure you want to clear all images for this product?')) return;
+    try {
+      await productService.clearImages(initial.id);
+      setExistingImages([]);
+      toast.success('Product images cleared successfully!');
+    } catch (err) {
+      toast.error(err?.detail || 'Failed to clear images.');
+    }
+  };
 
   useEffect(() => {
     if (imageFiles.length === 0) {
@@ -138,11 +151,20 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Product Images (Upload up to 5 images)</label>
-            {initial && initial.images && initial.images.length > 0 && (
+            {initial && existingImages && existingImages.length > 0 && (
               <div className="mb-3">
-                <span className="text-xs text-gray-400 font-bold block mb-1">Current Images:</span>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-gray-400 font-bold block">Current Images:</span>
+                  <button
+                    type="button"
+                    onClick={handleClearImages}
+                    className="text-[10px] font-extrabold text-red-650 hover:text-red-700 dark:text-red-400 cursor-pointer transition-colors"
+                  >
+                    Clear All Images
+                  </button>
+                </div>
                 <div className="flex gap-2 flex-wrap">
-                  {initial.images.map((img, idx) => (
+                  {existingImages.map((img, idx) => (
                     <img
                       key={idx}
                       src={getImageUrl(img)}
