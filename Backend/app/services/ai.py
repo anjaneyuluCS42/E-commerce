@@ -202,7 +202,10 @@ class AIService:
                     if prod.category_id != 3:
                         continue
                 elif is_laptop_query:
-                    is_prod_laptop = any(kw in prod_name_lower or kw in prod_desc_lower for kw in ["laptop", "notebook", "chromebook"]) or (prod.name.split()[0].lower() in ["dell", "macbook"])
+                    is_prod_laptop = (prod.category_id == 1) and (
+                        any(kw in prod_name_lower for kw in ["laptop", "notebook", "chromebook", "computer", "macbook", "desktop", "pc", "elite"]) or
+                        (prod.name.split()[0].lower() in ["dell", "hp", "lenovo", "asus", "acer", "apple"])
+                    )
                     if not is_prod_laptop:
                         continue
                     
@@ -329,29 +332,31 @@ class AIService:
                 for p in matching_recs[:5]
             ])
 
-            prompt = f"""
-    You are a professional and matured AI Shopping Assistant for an E-Commerce website.
+             prompt = f"""
+    You are a friendly, highly persuasive, and expert real-life shopkeeper/salesman for our E-commerce store, ShopHub. 
+    Your goal is to convince the customer to buy the recommended products by explaining their unique value propositions in an exciting, engaging, and professional way, just like a top-performing real-time store manager.
 
     Customer Request: {message}
 
     Matching Products:
     {product_summary}
 
-    Write a direct, clear, and matured shopping recommendation response.
+    Write a highly convincing and persuasive sales recommendation response.
 
     Rules:
+    - Act as an energetic, polite, and persuasive salesman. Convince them why these matches are perfect for them!
     - Recommend ONLY the given matching products. Do not suggest other categories or accessories.
-    - Explicitly mention that you are listing the products that fit the user's specific price range or criteria.
-    - Explain why they match.
+    - Explicitly mention that these match their specific price range/criteria.
+    - Explain the top benefit of each recommendation in a compelling way.
     - Do not invent products.
-    - Be structured, objective, and professional. Keep the response within 120 words.
+    - Keep the response friendly, sales-driven, yet professional, within 120 words.
     """
 
             response_text = await AIService._call_llm(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a professional shopping assistant."
+                        "content": "You are a friendly and persuasive real-life store shopkeeper/salesman."
                     },
                     {
                         "role": "user",
@@ -371,20 +376,19 @@ class AIService:
                 rec.pop("score", None)
         else:
             prompt = f"""
-    You are a professional and matured AI Shopping Assistant for an E-Commerce website.
+    You are a friendly and helpful real-life shopkeeper/salesman for our E-commerce store, ShopHub.
     Customer Request: {message}
     No products matched the customer's query.
-    Write a clear and direct response letting the customer know we couldn't find any products matching their exact criteria.
-    (e.g., if they asked for mobiles above 10,000, state directly: "No mobiles are available above ₹10,000 in our store.")
-    Suggest they adjust their search criteria or look at other categories.
-    Keep response within 80 words.
+    Politely let the customer know that we don't have products matching their exact criteria right now.
+    Suggest they look at other similar categories or adjust their filters, and try to guide them to check other items in our store with a welcoming tone.
+    Keep response friendly and within 80 words.
     """
             try:
                 response_text = await AIService._call_llm(
                     messages=[
                         {
                             "role": "system",
-                            "content": "You are a professional shopping assistant."
+                            "content": "You are a friendly and persuasive real-life store shopkeeper/salesman."
                         },
                         {
                             "role": "user",
@@ -463,7 +467,10 @@ class AIService:
                     if prod.category_id != 3:
                         continue
                 elif is_laptop_query:
-                    is_prod_laptop = any(kw in prod_name_lower or kw in prod_desc_lower for kw in ["laptop", "notebook", "chromebook"]) or (prod.name.split()[0].lower() in ["dell", "macbook"])
+                    is_prod_laptop = (prod.category_id == 1) and (
+                        any(kw in prod_name_lower for kw in ["laptop", "notebook", "chromebook", "computer", "macbook", "desktop", "pc", "elite"]) or
+                        (prod.name.split()[0].lower() in ["dell", "hp", "lenovo", "asus", "acer", "apple"])
+                    )
                     if not is_prod_laptop:
                         continue
                     
@@ -567,22 +574,28 @@ class AIService:
                 for p in matching_recs[:5]
             ])
             prompt = f"""
-    You are a professional and matured AI Shopping Assistant for an E-Commerce website.
+    You are a friendly, highly persuasive, and expert real-life shopkeeper/salesman for our E-commerce store, ShopHub. 
+    Your goal is to convince the customer to buy the recommended products by explaining their unique value propositions in an exciting, engaging, and professional way, just like a top-performing real-time store manager.
+
     Customer Request: {message}
+
     Matching Products:
     {product_summary}
-    Write a direct, clear, and matured shopping recommendation response.
+
+    Write a highly convincing and persuasive sales recommendation response.
+
     Rules:
+    - Act as an energetic, polite, and persuasive salesman. Convince them why these matches are perfect for them!
     - Recommend ONLY the given matching products. Do not suggest other categories or accessories.
-    - Explicitly mention that you are listing the products that fit the user's specific price range or criteria.
-    - Explain why they match.
+    - Explicitly mention that these match their specific price range/criteria.
+    - Explain the top benefit of each recommendation in a compelling way.
     - Do not invent products.
-    - Be structured, objective, and professional. Keep the response within 120 words.
+    - Keep the response friendly, sales-driven, yet professional, within 120 words.
     """
             try:
                 async for content in AIService._call_llm_stream(
                     messages=[
-                        {"role": "system", "content": "You are a professional shopping assistant."},
+                        {"role": "system", "content": "You are a friendly and persuasive real-life store shopkeeper/salesman."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.4
@@ -599,18 +612,17 @@ class AIService:
                 rec.pop("score", None)
         else:
             prompt = f"""
-    You are a professional and matured AI Shopping Assistant for an E-Commerce website.
+    You are a friendly and helpful real-life shopkeeper/salesman for our E-commerce store, ShopHub.
     Customer Request: {message}
     No products matched the customer's query.
-    Write a clear and direct response letting the customer know we couldn't find any products matching their exact criteria.
-    (e.g., if they asked for mobiles above 10,000, state directly: "No mobiles are available above ₹10,000 in our store.")
-    Suggest they adjust their search criteria or look at other categories.
-    Keep response within 80 words.
+    Politely let the customer know that we don't have products matching their exact criteria right now.
+    Suggest they look at other similar categories or adjust their filters, and try to guide them to check other items in our store with a welcoming tone.
+    Keep response friendly and within 80 words.
     """
             try:
                 async for content in AIService._call_llm_stream(
                     messages=[
-                        {"role": "system", "content": "You are a professional shopping assistant."},
+                        {"role": "system", "content": "You are a friendly and persuasive real-life store shopkeeper/salesman."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.4

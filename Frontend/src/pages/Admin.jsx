@@ -256,6 +256,37 @@ export default function Admin() {
   const [editProduct, setEditProduct] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [usernames, setUsernames] = useState({});
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
+
+  useEffect(() => {
+    const fetchUsernames = async () => {
+      const uids = Array.from(new Set(orders.map((o) => o.user_id)));
+      for (const uid of uids) {
+        if (uid && !usernames[uid]) {
+          try {
+            const response = await api.get(`/auth/users/${uid}`, { skipToast: true });
+            if (response.data && response.data.username) {
+              setUsernames((prev) => ({
+                ...prev,
+                [uid]: response.data.username,
+              }));
+            }
+          } catch (err) {
+            console.error(`Failed to fetch username for user ID ${uid}:`, err);
+            // Cache a fallback to prevent infinite fetch loop
+            setUsernames((prev) => ({
+              ...prev,
+              [uid]: `Customer #${uid}`,
+            }));
+          }
+        }
+      }
+    };
+    if (orders && orders.length > 0) {
+      fetchUsernames();
+    }
+  }, [orders]);
 
   // Data hooks
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -606,7 +637,14 @@ export default function Admin() {
                       : orders.map((order) => (
                           <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                             <td className="px-4 py-3 text-sm font-black text-gray-900 dark:text-white">#{order.id}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">User #{order.user_id}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <button
+                                onClick={() => setSelectedOrderDetails(order)}
+                                className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline text-left cursor-pointer transition-colors focus:outline-none"
+                              >
+                                {usernames[order.user_id] || `User #${order.user_id}`}
+                              </button>
+                            </td>
                             <td className="px-4 py-3 text-sm font-bold text-blue-600 dark:text-blue-400">{formatPrice(order.total_price || 0)}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{formatDate(order.created_at)}</td>
                             <td className="px-4 py-3">
@@ -700,6 +738,14 @@ export default function Admin() {
           onClose={() => setEditProduct(null)}
           onSave={handleUpdate}
           isSaving={updating}
+        />
+      )}
+      {selectedOrderDetails && (
+        <OrderDetailsModal
+          order={selectedOrderDetails}
+          products={products}
+          username={usernames[selectedOrderDetails.user_id] || `User #${selectedOrderDetails.user_id}`}
+          onClose={() => setSelectedOrderDetails(null)}
         />
       )}
     </div>
@@ -898,6 +944,116 @@ function AdminSupportChat() {
             <p className="text-xs text-gray-400 font-semibold max-w-xs">Select a customer from the left sidebar list to begin replying to messages.</p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function OrderDetailsModal({ order, products, username, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-2xl border border-gray-100 dark:border-gray-700 overflow-y-auto max-h-[90vh] animate-fadeIn">
+        <div className="flex items-center justify-between mb-5 border-b dark:border-gray-700 pb-3">
+          <div>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white">Order Details</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Order ID: #{order.id} | Customer: {username}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-450 hover:text-gray-700 dark:hover:text-gray-200 p-1">
+            <FaTimes className="text-xl" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Shipping Address */}
+          <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-100 dark:border-gray-750">
+            <h3 className="text-xs font-bold text-gray-450 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              📍 Shipping & Customer Details
+            </h3>
+            <pre className="text-xs font-semibold text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-sans leading-relaxed">
+              {order.shipping_address || 'No shipping address provided.'}
+            </pre>
+          </div>
+
+          {/* Payment & Logistics Info */}
+          <div className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-100 dark:border-gray-750 space-y-3">
+            <h3 className="text-xs font-bold text-gray-455 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              💳 Payment & Logistics
+            </h3>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Payment Method</p>
+              <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{order.payment_method}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Payment Status</p>
+              <span className={`inline-block text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide border mt-0.5 ${
+                order.payment_status === 'Completed'
+                  ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400'
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-400'
+              }`}>
+                {order.payment_status}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Order Status</p>
+              <span className="inline-block text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide border mt-0.5 bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-400">
+                {order.status || order.order_status || 'Pending'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Ordered Products Table */}
+        <div className="border border-gray-150 dark:border-gray-700 rounded-xl overflow-hidden mb-6">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900 text-[10px] text-gray-550 font-bold uppercase">
+              <tr>
+                <th className="px-4 py-2.5">Product</th>
+                <th className="px-4 py-2.5 text-center">Qty</th>
+                <th className="px-4 py-2.5 text-right">Price</th>
+                <th className="px-4 py-2.5 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-150 dark:divide-gray-700 text-xs">
+              {order.items && order.items.map((item) => {
+                const prod = products.find((p) => p.id === item.product_id);
+                return (
+                  <tr key={item.id} className="dark:text-gray-250">
+                    <td className="px-4 py-3 font-semibold truncate max-w-xs">{prod ? prod.name : `Product ID #${item.product_id}`}</td>
+                    <td className="px-4 py-3 text-center font-bold text-gray-500 dark:text-gray-400">{item.quantity}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">{formatPrice(item.price)}</td>
+                    <td className="px-4 py-3 text-right font-black text-blue-600 dark:text-blue-400">{formatPrice(item.price * item.quantity)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pricing Summary */}
+        <div className="flex flex-col items-end space-y-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 border-t dark:border-gray-700 pt-4">
+          <div className="flex justify-between w-64">
+            <span>Subtotal:</span>
+            <span>{formatPrice(order.subtotal || 0)}</span>
+          </div>
+          <div className="flex justify-between w-64">
+            <span>Tax:</span>
+            <span>{formatPrice(order.tax || 0)}</span>
+          </div>
+          <div className="flex justify-between w-64">
+            <span>Shipping:</span>
+            <span>{formatPrice(order.shipping_fee || 0)}</span>
+          </div>
+          {order.discount > 0 && (
+            <div className="flex justify-between w-64 text-green-600 font-bold">
+              <span>Discount:</span>
+              <span>-{formatPrice(order.discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between w-64 text-sm font-black text-gray-900 dark:text-white border-t dark:border-gray-700 pt-1.5">
+            <span>Total:</span>
+            <span className="text-blue-650 dark:text-blue-400">{formatPrice(order.total_price || 0)}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

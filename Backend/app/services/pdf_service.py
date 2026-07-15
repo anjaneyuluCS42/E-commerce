@@ -21,7 +21,7 @@ def generate_invoice_pdf(order_id: int, user_email: str, total_price: float, ite
     # Header
     c.setFont("Helvetica-Bold", 24)
     c.setFillColor(HexColor("#333333"))
-    c.drawString(50, height - 50, "E-COMMERCE STORE")
+    c.drawString(50, height - 50, "SHOP HUB🛒 STORE")
 
     c.setFont("Helvetica", 14)
     c.setFillColor(HexColor("#666666"))
