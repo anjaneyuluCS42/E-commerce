@@ -109,6 +109,14 @@ async def place_order(
     # Clear Cart
     await redis_client.delete(cart_key)
 
+    # Clear Products Search Cache to update stock in search list
+    try:
+        from app.routers.product import clear_products_cache
+        await clear_products_cache()
+    except Exception as e:
+        import logging
+        logging.getLogger("uvicorn").error(f"Failed to clear products cache on checkout: {e}")
+
     # Fire background task and generate PDF Invoice
     serializable_items = [
         {"name": product_dict.get(item.product_id).name, "quantity": item.quantity, "price": item.price} 
