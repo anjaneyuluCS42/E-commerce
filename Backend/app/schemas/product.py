@@ -9,19 +9,26 @@ def sanitize_string(value: str) -> str:
     return escape(clean.strip())
 
 
-class ProductCreate(BaseModel):
+class ProductBase(BaseModel):
+    name: str
+    description: str
+    price: float
+    stock: int
+
+
+class ProductCreate(ProductBase):
     name: str = Field(..., min_length=2, max_length=100)
-    description: str = Field(..., min_length=5, max_length=1000)
+    description: str = Field(..., min_length=5, max_length=10000)
     price: float = Field(..., gt=0, lt=1000000)
     stock: int = Field(..., ge=0, lt=100000)
 
     @field_validator('name', 'description')
     @classmethod
-    def sanitize_fields(cls, v: str) -> str:
+    def validate_and_sanitize_fields(cls, v: str) -> str:
         return sanitize_string(v)
 
 
-class ProductResponse(ProductCreate):
+class ProductResponse(ProductBase):
     id: int
     owner_id: int
     category_id: int | None = None
