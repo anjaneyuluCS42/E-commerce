@@ -41,35 +41,93 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
 function ProductFormModal({ initial, onClose, onSave, isSaving }) {
   const [form, setForm] = useState(
     initial
-      ? { ...initial, category_id: initial.category_id || '' }
-      : { name: '', description: '', price: '', stock: '', category_id: '' }
+      ? { 
+          ...initial, 
+          category_id: initial.category_id || '',
+          image_url: initial.image_url || '',
+          images: initial.images || []
+        }
+      : { 
+          name: '', 
+          description: '', 
+          price: '', 
+          stock: '', 
+          category_id: '',
+          image_url: '',
+          images: []
+        }
   );
   const [generating, setGenerating] = useState(false);
-  const [imageFiles, setImageFiles] = useState([]);
-  const [previewUrls, setPreviewUrls] = useState([]);
-  const [existingImages, setExistingImages] = useState(initial?.images || []);
-
-  const handleClearImages = async () => {
-    if (!initial?.id) return;
-    if (!confirm('Are you sure you want to clear all images for this product?')) return;
-    try {
-      await productService.clearImages(initial.id);
-      setExistingImages([]);
-      toast.success('Product images cleared successfully!');
-    } catch (err) {
-      toast.error(err?.detail || 'Failed to clear images.');
-    }
-  };
+  const [managedImages, setManagedImages] = useState([]);
+  const [newUrlInput, setNewUrlInput] = useState('');
 
   useEffect(() => {
-    if (imageFiles.length === 0) {
-      setPreviewUrls([]);
+    if (initial) {
+      const list = [];
+      if (initial.images && initial.images.length > 0) {
+        initial.images.forEach(img => {
+          list.push({ type: 'existing', url: img });
+        });
+      } else if (initial.image_url) {
+        list.push({ type: 'existing', url: initial.image_url });
+      }
+      setManagedImages(list);
+    } else {
+      setManagedImages([]);
+    }
+  }, [initial]);
+
+  useEffect(() => {
+    return () => {
+      managedImages.forEach(img => {
+        if (img.type === 'file' && img.previewUrl) {
+          URL.revokeObjectURL(img.previewUrl);
+        }
+      });
+    };
+  }, [managedImages]);
+
+  const handleDeleteImageItem = (idx) => {
+    setManagedImages((prev) => {
+      const item = prev[idx];
+      if (item.type === 'file' && item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const handleAddUrlImage = () => {
+    if (!newUrlInput.trim()) return;
+    if (managedImages.length >= 5) {
+      toast.warning('Maximum of 5 images allowed.');
       return;
     }
-    const urls = imageFiles.map(file => URL.createObjectURL(file));
-    setPreviewUrls(urls);
-    return () => urls.forEach(url => URL.revokeObjectURL(url));
-  }, [imageFiles]);
+    setManagedImages((prev) => [
+      ...prev,
+      { type: 'url', url: newUrlInput.trim() }
+    ]);
+    setNewUrlInput('');
+  };
+
+  const handleAddFileImages = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (managedImages.length + selectedFiles.length > 5) {
+      toast.warning('Maximum of 5 images allowed. Some files were not added.');
+    }
+    
+    const spaceLeft = 5 - managedImages.length;
+    const filesToAdd = selectedFiles.slice(0, spaceLeft);
+    
+    const newItems = filesToAdd.map(file => ({
+      type: 'file',
+      file,
+      previewUrl: URL.createObjectURL(file)
+    }));
+    
+    setManagedImages((prev) => [...prev, ...newItems]);
+    e.target.value = '';
+  };
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -97,12 +155,19 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const fileItems = managedImages.filter(img => img.type === 'file');
+    const nonFileItems = managedImages.filter(img => img.type !== 'file');
+    const finalImages = nonFileItems.map(img => img.url);
+    const finalImageUrl = finalImages.length > 0 ? finalImages[0] : '';
+
     onSave({
       ...form,
       price: parseFloat(form.price),
       stock: parseInt(form.stock),
       category_id: form.category_id ? parseInt(form.category_id) : null,
-    }, imageFiles);
+      image_url: finalImageUrl || null,
+      images: finalImages,
+    }, fileItems.map(img => img.file));
   };
 
   const inputClass =
@@ -177,64 +242,98 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Product Images (Upload up to 5 images)</label>
-            {initial && existingImages && existingImages.length > 0 && (
-              <div className="mb-3">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-gray-400 font-bold block">Current Images:</span>
+            <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+              Product Images (Up to 5 images)
+            </label>
+            
+            {/* Image List Preview Grid */}
+            {managedImages.length > 0 && (
+              <div className="grid grid-cols-5 gap-3 p-3 bg-gray-50 dark:bg-gray-700/20 border border-gray-150 dark:border-gray-700 rounded-xl mb-3">
+                {managedImages.map((img, idx) => {
+                  const src = img.type === 'file' ? img.previewUrl : getImageUrl(img.url);
+                  const isWeb = img.type === 'url';
+                  const isFile = img.type === 'file';
+                  return (
+                    <div key={idx} className="relative group aspect-square rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center">
+                      <img
+                        src={src}
+                        alt={`Preview ${idx}`}
+                        className="w-full h-full object-contain p-1"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getFallbackImageUrl(form.name || 'product', form.category_id);
+                        }}
+                      />
+                      
+                      {/* Source Badge */}
+                      <span className={`absolute bottom-1 left-1 right-1 text-[8px] font-bold text-center py-0.5 rounded shadow-sm opacity-90 ${
+                        isFile 
+                          ? 'bg-blue-500 text-white' 
+                          : isWeb 
+                            ? 'bg-purple-500 text-white' 
+                            : 'bg-green-600 text-white'
+                      }`}>
+                        {isFile ? 'Local' : isWeb ? 'Web Link' : 'Uploaded'}
+                      </span>
+                      
+                      {/* Delete Action */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteImageItem(idx)}
+                        className="absolute top-1 right-1 p-1 bg-red-650 hover:bg-red-700 text-white rounded-full shadow-md transition-transform scale-90 group-hover:scale-100 opacity-90 cursor-pointer"
+                        title="Remove Image"
+                      >
+                        <FaTrashAlt className="text-[10px]" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add Image Inputs */}
+            {managedImages.length < 5 ? (
+              <div className="space-y-3 bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                {/* Web URL option */}
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={newUrlInput}
+                    onChange={(e) => setNewUrlInput(e.target.value)}
+                    placeholder="Paste public image URL..."
+                    className={`${inputClass} flex-grow`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddUrlImage();
+                      }
+                    }}
+                  />
                   <button
                     type="button"
-                    onClick={handleClearImages}
-                    className="text-[10px] font-extrabold text-red-650 hover:text-red-700 dark:text-red-400 cursor-pointer transition-colors"
+                    onClick={handleAddUrlImage}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer whitespace-nowrap active:scale-95"
                   >
-                    Clear All Images
+                    Add URL
                   </button>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  {existingImages.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={getImageUrl(img)}
-                      alt={`Current ${idx}`}
-                      className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                      onError={(e) => {
-                        e.currentTarget.src = 'https://placehold.co/100x100/e2e8f0/475569?text=ShopHub';
-                      }}
-                    />
-                  ))}
+                
+                <div className="relative flex items-center justify-center border border-gray-300 dark:border-gray-650 rounded-lg p-2 bg-white dark:bg-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                  <span className="text-xs font-bold text-gray-600 dark:text-gray-300">📁 Upload Local File</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleAddFileImages}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                  />
                 </div>
               </div>
+            ) : (
+              <p className="text-[10px] font-bold text-center text-yellow-600 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 py-2 rounded-lg border border-yellow-100 dark:border-yellow-900/30">
+                ⚠️ Maximum limit of 5 images reached. Remove an image to add a new one.
+              </p>
             )}
-            {previewUrls.length > 0 && (
-              <div className="mb-3">
-                <span className="text-xs text-gray-400 font-bold block mb-1">New Image Previews:</span>
-                <div className="flex gap-2 flex-wrap">
-                  {previewUrls.map((url, idx) => (
-                    <img
-                      key={idx}
-                      src={url}
-                      alt={`Preview ${idx}`}
-                      className="w-12 h-12 object-cover rounded-lg border border-blue-500"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => {
-                const selectedFiles = Array.from(e.target.files);
-                if (selectedFiles.length > 5) {
-                  toast.warning('You can upload a maximum of 5 images. Only the first 5 will be selected.');
-                  setImageFiles(selectedFiles.slice(0, 5));
-                } else {
-                  setImageFiles(selectedFiles);
-                }
-              }}
-              className={inputClass}
-            />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm transition-colors">
@@ -445,6 +544,8 @@ export default function Admin() {
         price: parseFloat(data.price),
         stock: parseInt(data.stock),
         category_id: data.category_id,
+        image_url: data.image_url || null,
+        images: data.images || [],
       };
       const newProduct = await createProduct(filteredData);
       if (imageFiles && imageFiles.length > 0) {
@@ -471,6 +572,8 @@ export default function Admin() {
         price: parseFloat(data.price),
         stock: parseInt(data.stock),
         category_id: data.category_id,
+        image_url: data.image_url || null,
+        images: data.images || [],
       };
       await updateProduct({ id: editProduct.id, data: filteredData });
       if (imageFiles && imageFiles.length > 0) {
