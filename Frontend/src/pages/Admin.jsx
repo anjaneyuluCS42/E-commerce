@@ -97,11 +97,11 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Product Name *</label>
-            <input name="name" value={form.name} onChange={handleChange} required placeholder="iPhone 15 Pro" className={inputClass} />
+            <input name="name" value={form.name} onChange={handleChange} required minLength={2} placeholder="iPhone 15 Pro" className={inputClass} />
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Description</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Description *</label>
               <button
                 type="button"
                 onClick={handleGenerateDescription}
@@ -120,16 +120,16 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
                 )}
               </button>
             </div>
-            <textarea name="description" value={form.description} onChange={handleChange} rows={2} placeholder="Short product description" className={inputClass} />
+            <textarea name="description" value={form.description} onChange={handleChange} rows={2} required minLength={5} placeholder="Short product description (at least 5 characters)" className={inputClass} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Price (₹) *</label>
-              <input name="price" type="number" step="0.01" value={form.price} onChange={handleChange} required placeholder="999.00" className={inputClass} />
+              <input name="price" type="number" step="0.01" min="0.01" value={form.price} onChange={handleChange} required placeholder="999.00" className={inputClass} />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Stock *</label>
-              <input name="stock" type="number" value={form.stock} onChange={handleChange} required placeholder="50" className={inputClass} />
+              <input name="stock" type="number" min="0" value={form.stock} onChange={handleChange} required placeholder="50" className={inputClass} />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Category</label>
@@ -259,7 +259,10 @@ export default function Admin() {
       toast.success('Product created successfully!');
       setShowCreateModal(false);
     } catch (err) {
-      const errMsg = err?.detail?.[0]?.msg || err?.detail || 'Failed to create product';
+      const errDetail = err?.detail?.[0];
+      const errMsg = errDetail
+        ? `${errDetail.loc?.[errDetail.loc.length - 1] || 'Field'}: ${errDetail.msg}`
+        : err?.detail || 'Failed to create product';
       toast.error(typeof errMsg === 'string' ? errMsg : 'Failed to create product');
     }
   };
@@ -281,7 +284,10 @@ export default function Admin() {
       toast.success('Product updated successfully!');
       setEditProduct(null);
     } catch (err) {
-      const errMsg = err?.detail?.[0]?.msg || err?.detail || 'Failed to update product';
+      const errDetail = err?.detail?.[0];
+      const errMsg = errDetail
+        ? `${errDetail.loc?.[errDetail.loc.length - 1] || 'Field'}: ${errDetail.msg}`
+        : err?.detail || 'Failed to update product';
       toast.error(typeof errMsg === 'string' ? errMsg : 'Failed to update product');
     }
   };
