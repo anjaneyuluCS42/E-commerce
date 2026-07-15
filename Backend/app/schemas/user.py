@@ -5,8 +5,14 @@ from html import escape, unescape
 def sanitize_string(value: str) -> str:
     # Remove HTML tags
     clean = re.sub(r'<[^>]*>', '', value)
-    # Unescape first to prevent double escaping of already escaped entities
-    return escape(unescape(clean.strip()))
+    # Unescape recursively to resolve any deeply nested entities
+    current = clean.strip()
+    while True:
+        nxt = unescape(current)
+        if nxt == current:
+            break
+        current = nxt
+    return escape(current)
 
 
 class UserCreate(BaseModel):
