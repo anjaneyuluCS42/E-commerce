@@ -33,7 +33,18 @@ const CartItem: React.FC<CartItemProps> = ({
             alt={item.name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.currentTarget.src = getFallbackImageUrl(item.name, item.category_id);
+              const currentSrc = e.currentTarget.src;
+              if (currentSrc.startsWith('data:image/svg+xml')) {
+                e.currentTarget.onerror = null;
+                return;
+              }
+              const fallbackUrl = getFallbackImageUrl(item.name, item.category || item.category_id);
+              if (currentSrc !== fallbackUrl) {
+                e.currentTarget.src = fallbackUrl;
+              } else {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="%239ca3af">${encodeURIComponent(item.name)}</text></svg>`;
+              }
             }}
           />
         </div>

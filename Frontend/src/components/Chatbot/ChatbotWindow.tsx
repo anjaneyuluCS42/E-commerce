@@ -232,12 +232,23 @@ const ChatbotWindow: React.FC<ChatbotWindowProps> = ({
                       >
                         {/* Product Image */}
                         <div className="w-14 h-14 rounded-lg bg-gray-50 dark:bg-gray-900 flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-100 dark:border-gray-750">
-                          <img
+                           <img
                             src={getImageUrl(product.image_url)}
                             alt={product.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.currentTarget.src = getFallbackImageUrl(product.name);
+                              const currentSrc = e.currentTarget.src;
+                              if (currentSrc.startsWith('data:image/svg+xml')) {
+                                e.currentTarget.onerror = null;
+                                return;
+                              }
+                              const fallbackUrl = getFallbackImageUrl(product.name, product.category || product.category_id);
+                              if (currentSrc !== fallbackUrl) {
+                                e.currentTarget.src = fallbackUrl;
+                              } else {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="%239ca3af">${encodeURIComponent(product.name)}</text></svg>`;
+                              }
                             }}
                           />
                         </div>

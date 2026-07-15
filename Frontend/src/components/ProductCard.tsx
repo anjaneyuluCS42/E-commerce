@@ -100,7 +100,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             alt={product.name}
             className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
             onError={(e) => {
-              e.currentTarget.src = getFallbackImageUrl(product.name, product.category_id);
+              const currentSrc = e.currentTarget.src;
+              if (currentSrc.startsWith('data:image/svg+xml')) {
+                e.currentTarget.onerror = null;
+                return;
+              }
+              const fallbackUrl = getFallbackImageUrl(product.name, product.category || product.category_id);
+              if (currentSrc !== fallbackUrl) {
+                e.currentTarget.src = fallbackUrl;
+              } else {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="%239ca3af">${encodeURIComponent(product.name)}</text></svg>`;
+              }
             }}
           />
           {isOutOfStock && (
