@@ -16,9 +16,9 @@ export function useAllOrders() {
 /** Update order status (admin) */
 export function useUpdateOrderStatus() {
   const qc = useQueryClient();
-  return useMutation<Order, Error, { orderId: number; status: string }>({
-    mutationFn: ({ orderId, status }) =>
-      adminService.updateOrderStatus(orderId, status),
+  return useMutation<Order, Error, { orderId: number; status: string; current_location?: string }>({
+    mutationFn: ({ orderId, status, current_location }) =>
+      adminService.updateOrderStatus(orderId, status, current_location),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.allOrders });
       qc.invalidateQueries({ queryKey: QUERY_KEYS.orders });

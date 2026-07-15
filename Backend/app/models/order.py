@@ -22,6 +22,8 @@ class Order(Base):
     # Phase 6 Prep: Order Tracking & Status
     payment_status = Column(String, default="Pending") # Pending, Completed, Failed
     order_status = Column(String, default="Pending") # Pending, Confirmed, Packed, Shipped, Delivered, Cancelled
+    current_location = Column(String, default="Warehouse")
+    tracking_history = Column(String, default="[]")
     
     created_at = Column(DateTime, default=datetime.utcnow)
 

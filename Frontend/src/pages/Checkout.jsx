@@ -46,9 +46,21 @@ export default function Checkout() {
     mode: 'onTouched',
   });
 
-  const onSubmit = async () => {
+  const onSubmit = async (data) => {
     try {
-      await placeOrder();
+      const addressString = `${data.fullName}, ${data.address}, ${data.city}, ${data.state} - ${data.zipCode}. Phone: ${data.phone}`;
+      const methodMap = {
+        card: 'Credit Card',
+        upi: 'UPI',
+        cod: 'Cash on Delivery',
+      };
+      const payload = {
+        shipping_address: addressString,
+        payment_method: methodMap[paymentMethod] || 'Credit Card',
+        coupon_code: '',
+      };
+
+      await placeOrder(payload);
       clearCart();
       setOrderPlaced(true);
       toast.success('Order placed successfully! 🎉');

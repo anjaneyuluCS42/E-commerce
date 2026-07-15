@@ -29,6 +29,11 @@ export interface Order {
   status?: string;
   created_at?: string;
   items?: OrderItem[];
+  current_location?: string;
+  tracking_history?: string;
+  payment_method?: string;
+  payment_status?: string;
+  order_status?: string;
 }
 
 export interface User {

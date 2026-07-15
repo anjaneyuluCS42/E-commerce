@@ -13,9 +13,9 @@ const adminService = {
   },
 
   /** Update order status (admin) */
-  updateOrderStatus: async (orderId: number, status: string): Promise<Order> => {
+  updateOrderStatus: async (orderId: number, status: string, current_location?: string): Promise<Order> => {
     try {
-      const response = await api.patch(`/orders/${orderId}/status`, { status });
+      const response = await api.patch(`/orders/${orderId}/status`, { status, current_location });
       return response.data;
     } catch (error: any) {
       throw error.response?.data || error.message;
@@ -35,10 +35,19 @@ const adminService = {
         (sum: number, o: Order) => sum + (o.total_price || 0),
         0
       );
+      const uniqueUsers = new Set(orderList.map((o: any) => o.user_id)).size;
+      const productsSold = orderList.reduce(
+        (sum: number, o: any) =>
+          sum +
+          (o.items || []).reduce((itemSum: number, item: any) => itemSum + item.quantity, 0),
+        0
+      );
       return {
         totalProducts: productList.length,
         totalOrders: orderList.length,
         revenue,
+        uniqueUsers,
+        productsSold,
       };
     } catch (error: any) {
       throw error.response?.data || error.message;

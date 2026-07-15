@@ -2,9 +2,9 @@ import api from '../api/axios';
 
 const orderService = {
   // Place a new order
-  placeOrder: async () => {
+  placeOrder: async (checkoutData) => {
     try {
-      const response = await api.post('/orders/place');
+      const response = await api.post('/orders/checkout', checkoutData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

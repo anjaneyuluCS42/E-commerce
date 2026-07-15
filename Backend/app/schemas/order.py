@@ -28,6 +28,8 @@ class OrderResponse(BaseModel):
     payment_method: str
     payment_status: str
     order_status: str
+    current_location: Optional[str] = "Warehouse"
+    tracking_history: Optional[str] = "[]"
     created_at: datetime
     items: List[OrderItemResponse] = []
     email_task_id: Optional[str] = None

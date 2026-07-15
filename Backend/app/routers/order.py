@@ -64,10 +64,26 @@ async def place_order(
     total_price = (subtotal + tax + shipping) - discount
 
     # Mock Payment Processing
-    payment_status = "Completed" if checkout_data.payment_method != "FailMe" else "Failed"
+    if checkout_data.payment_method == "FailMe":
+        payment_status = "Failed"
+    elif checkout_data.payment_method in ["Cash on Delivery", "COD"]:
+        payment_status = "Pending"
+    else:
+        payment_status = "Completed"
     
     if payment_status == "Failed":
         raise HTTPException(status_code=402, detail="Payment Failed")
+
+    # Initialize tracking history
+    import json
+    from datetime import datetime
+    initial_history = [
+        {
+            "status": "Confirmed",
+            "location": "Warehouse",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    ]
 
     # Create Order
     order = Order(
@@ -81,6 +97,8 @@ async def place_order(
         payment_method=checkout_data.payment_method,
         payment_status=payment_status,
         order_status="Confirmed",
+        current_location="Warehouse",
+        tracking_history=json.dumps(initial_history),
         items=order_items_to_add
     )
 
@@ -163,6 +181,7 @@ from pydantic import BaseModel
 
 class StatusUpdate(BaseModel):
     status: str
+    current_location: Optional[str] = None
 
 @router.put("/{order_id}/status", response_model=OrderResponse)
 @router.patch("/{order_id}/status", response_model=OrderResponse)
@@ -185,6 +204,33 @@ async def update_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
 
     order.order_status = status_input
+    if status_data.current_location is not None:
+        order.current_location = status_data.current_location
+
+    if status_input == "Delivered" and order.payment_method in ["Cash on Delivery", "COD"]:
+        order.payment_status = "Completed"
+
+    # Append to tracking history
+    import json
+    from datetime import datetime
+    history = []
+    if order.tracking_history:
+        try:
+            history = json.loads(order.tracking_history)
+        except Exception:
+            history = []
+
+    latest_status = history[-1].get("status") if history else None
+    latest_location = history[-1].get("location") if history else None
+    
+    if not history or latest_status != status_input or (status_data.current_location and latest_location != status_data.current_location):
+        history.append({
+            "status": status_input,
+            "location": order.current_location or "Warehouse",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        order.tracking_history = json.dumps(history)
+
     await db.commit()
     await db.refresh(order)
 

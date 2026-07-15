@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPrice, formatDate } from '../utils/formatters';
 import { ORDER_STATUSES } from '../constants';
@@ -30,11 +30,11 @@ const PROGRESS_MAP: Record<string, number> = {
   pending: 1,
 };
 
-
 const STEPS = ['Order Placed', 'Processing', 'Shipped', 'Delivered'];
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
   const { status, progress: taskProgress, startPolling, isPolling } = useTaskStatus();
+  const [showTracking, setShowTracking] = useState(false);
 
   const handleDownloadInvoice = async () => {
     try {
@@ -67,17 +67,48 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
     }
   }, [status, isPolling, order.id]);
 
-  const rawStatus = (order.status || 'processing').toLowerCase();
+  const rawStatus = (order.status || order.order_status || 'processing').toLowerCase();
   const statusKey = rawStatus in ORDER_STATUSES ? rawStatus : 'processing';
   const statusCfg = ORDER_STATUSES[statusKey as keyof typeof ORDER_STATUSES];
   const progress = PROGRESS_MAP[statusKey] ?? 1;
+
+  const formatDateTime = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  let trackingEvents = [];
+  if (order.tracking_history) {
+    try {
+      trackingEvents = JSON.parse(order.tracking_history);
+    } catch (e) {
+      trackingEvents = [];
+    }
+  }
+
+  if (trackingEvents.length === 0) {
+    trackingEvents = [
+      {
+        status: order.order_status || order.status || 'Pending',
+        location: order.current_location || 'Warehouse',
+        timestamp: order.created_at || new Date().toISOString(),
+      },
+    ];
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="bg-gray-50 dark:bg-gray-900 px-6 py-4 border-b border-gray-100 dark:border-gray-700">
         <div className="flex flex-wrap justify-between items-center gap-3">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 flex-wrap">
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Order ID</p>
               <p className="text-base font-black text-gray-900 dark:text-white">#{order.id}</p>
@@ -93,6 +124,24 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
               <p className="text-lg font-black text-gray-900 dark:text-white">
                 {formatPrice(order.total_price || 0)}
               </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Payment Method</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                {order.payment_method || 'Credit Card'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Payment Status</p>
+              <span className={`inline-block text-[10px] font-black px-2.5 py-1 rounded-lg border uppercase tracking-wide ${
+                order.payment_status === 'Completed'
+                  ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950/30 dark:border-green-800 dark:text-green-400'
+                  : order.payment_status === 'Failed'
+                  ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400'
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-950/30 dark:border-yellow-800 dark:text-yellow-400'
+              }`}>
+                {order.payment_status || 'Pending'}
+              </span>
             </div>
           </div>
           <span
@@ -146,6 +195,54 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
         </div>
       </div>
 
+      {/* Expandable Shipment Journey Vertical Timeline */}
+      {showTracking && (
+        <div className="px-6 py-5 bg-gray-50/50 dark:bg-gray-900/20 border-b border-gray-100 dark:border-gray-700 animate-fadeIn">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-sm font-black text-gray-900 dark:text-white flex items-center gap-2">
+              📍 Shipment Journey
+            </h4>
+            {order.current_location && (
+              <span className="text-xs font-extrabold text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900">
+                Current Location: {order.current_location}
+              </span>
+            )}
+          </div>
+          
+          <div className="relative border-l-2 border-blue-250 dark:border-blue-900 ml-3.5 pl-6 space-y-5">
+            {trackingEvents.map((evt: any, idx: number) => {
+              const isLatest = idx === trackingEvents.length - 1;
+              return (
+                <div key={idx} className="relative">
+                  <span className={`absolute -left-[31px] top-1 rounded-full w-4 h-4 flex items-center justify-center ring-4 ${
+                    isLatest 
+                      ? 'bg-green-500 ring-green-150 animate-pulse' 
+                      : 'bg-blue-500 ring-blue-100 dark:ring-blue-950'
+                  }`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                  </span>
+                  
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={`text-xs font-black capitalize ${isLatest ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {evt.status}
+                      </p>
+                      <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold">•</span>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-450 font-bold">
+                        {evt.location || 'Warehouse'}
+                      </p>
+                    </div>
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 font-semibold mt-0.5">
+                      {formatDateTime(evt.timestamp)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -158,6 +255,12 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
             : '❌ This order was cancelled.'}
         </p>
         <div className="flex gap-3">
+          <button
+            onClick={() => setShowTracking(!showTracking)}
+            className="text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            {showTracking ? 'Hide Tracking' : 'Track Shipment'}
+          </button>
           <button
             onClick={handleDownloadInvoice}
             disabled={isPolling}

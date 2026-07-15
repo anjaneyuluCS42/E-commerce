@@ -283,8 +283,13 @@ export default function Admin() {
   }, [lastMessage, queryClient, refetchOrders, refetchProducts]);
 
   const handleStatusUpdate = async (orderId, newStatus) => {
+    const existingOrder = orders.find(o => o.id === orderId);
     try {
-      await updateOrderStatus({ orderId, status: newStatus });
+      await updateOrderStatus({
+        orderId,
+        status: newStatus,
+        current_location: existingOrder?.current_location
+      });
       toast.success(`Order #${orderId} status updated to ${newStatus}`);
     } catch (err) {
       toast.error(err?.detail || 'Failed to update order status');
@@ -392,7 +397,7 @@ export default function Admin() {
         {/* ── Dashboard Tab ── */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
               <StatCard
                 icon={FaBoxOpen}
                 label="Total Products"
@@ -410,6 +415,18 @@ export default function Admin() {
                 label="Revenue"
                 value={statsLoading ? '—' : `₹${((stats?.revenue ?? 0) / 1000).toFixed(1)}K`}
                 color="bg-amber-500"
+              />
+              <StatCard
+                icon={FaUser}
+                label="Customers Who Ordered"
+                value={statsLoading ? '—' : (stats?.uniqueUsers ?? 0)}
+                color="bg-purple-500"
+              />
+              <StatCard
+                icon={FaShoppingBag}
+                label="Products Sold"
+                value={statsLoading ? '—' : (stats?.productsSold ?? 0)}
+                color="bg-rose-500"
               />
             </div>
 
@@ -540,7 +557,7 @@ export default function Admin() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      {['Order ID', 'User', 'Total', 'Date', 'Status'].map((h) => (
+                      {['Order ID', 'User', 'Total', 'Date', 'Status', 'Current Location'].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           {h}
                         </th>
@@ -549,7 +566,7 @@ export default function Admin() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {ordersLoading
-                      ? Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
+                      ? Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
                       : orders.map((order) => (
                           <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                             <td className="px-4 py-3 text-sm font-black text-gray-900 dark:text-white">#{order.id}</td>
@@ -568,6 +585,51 @@ export default function Admin() {
                                   </option>
                                 ))}
                               </select>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  defaultValue={order.current_location || ''}
+                                  placeholder="Warehouse"
+                                  onKeyDown={async (e) => {
+                                    if (e.key === 'Enter') {
+                                      const newLoc = e.target.value;
+                                      try {
+                                        await updateOrderStatus({
+                                          orderId: order.id,
+                                          status: order.status || order.order_status || 'Pending',
+                                          current_location: newLoc
+                                        });
+                                        toast.success(`Updated location for Order #${order.id}`);
+                                      } catch (err) {
+                                        toast.error('Failed to update location');
+                                      }
+                                    }
+                                  }}
+                                  className="px-2.5 py-1.5 text-xs font-semibold border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none w-36"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    const inputVal = e.currentTarget.previousSibling.value;
+                                    try {
+                                      await updateOrderStatus({
+                                        orderId: order.id,
+                                        status: order.status || order.order_status || 'Pending',
+                                        current_location: inputVal
+                                      });
+                                      toast.success(`Updated location for Order #${order.id}`);
+                                    } catch (err) {
+                                      toast.error('Failed to update location');
+                                    }
+                                  }}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors cursor-pointer text-xs font-bold"
+                                  title="Save Location"
+                                >
+                                  💾
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

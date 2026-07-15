@@ -15,8 +15,8 @@ export function useOrders(enabled = true) {
 /** Place a new order from the current cart */
 export function usePlaceOrder() {
   const qc = useQueryClient();
-  return useMutation<Order, Error, void>({
-    mutationFn: () => orderService.placeOrder(),
+  return useMutation<Order, Error, any>({
+    mutationFn: (data) => orderService.placeOrder(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.orders });
     },
