@@ -332,7 +332,7 @@ class AIService:
                 for p in matching_recs[:5]
             ])
 
-             prompt = f"""
+            prompt = f"""
     You are a friendly, highly persuasive, and expert real-life shopkeeper/salesman for our E-commerce store, ShopHub. 
     Your goal is to convince the customer to buy the recommended products by explaining their unique value propositions in an exciting, engaging, and professional way, just like a top-performing real-time store manager.
 
