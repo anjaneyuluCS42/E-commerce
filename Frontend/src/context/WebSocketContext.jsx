@@ -160,10 +160,12 @@ export const WebSocketProvider = ({ children }) => {
             };
             setNotifications((prev) => [newNotif, ...prev]);
 
-            if (parsed.type === 'order_update') {
-              toast.success(newNotif.message);
-            } else {
-              toast.info(newNotif.message);
+            if (!parsed.is_history) {
+              if (parsed.type === 'order_update') {
+                toast.success(newNotif.message);
+              } else {
+                toast.info(newNotif.message);
+              }
             }
           } else if (parsed.type === 'chat_message') {
             setChatMessages((prev) => {

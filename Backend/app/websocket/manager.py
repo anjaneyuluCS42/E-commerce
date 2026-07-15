@@ -155,7 +155,9 @@ class ConnectionManager:
             notifs = await redis_client.lrange(notif_key, 0, -1)
             for notif_str in notifs:
                 try:
-                    await websocket.send_text(notif_str)
+                    notif = json.loads(notif_str)
+                    notif["is_history"] = True
+                    await websocket.send_text(json.dumps(notif))
                 except:
                     pass
         except Exception as e:
