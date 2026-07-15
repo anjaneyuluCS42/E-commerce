@@ -52,3 +52,32 @@ export function getImageUrl(imagePath?: string | null): string {
 export function truncate(text: string, maxLength = 80): string {
   return text.length > maxLength ? text.slice(0, maxLength) + '…' : text;
 }
+
+/**
+ * Generate a beautiful fallback product image from Unsplash or Placehold.co.
+ */
+export function getFallbackImageUrl(productName: string, categoryId?: number | string | null): string {
+  const name = productName.toLowerCase();
+  const cat = String(categoryId || '');
+  
+  if (name.includes('laptop') || name.includes('desktop') || name.includes('monitor') || name.includes('keyboard') || name.includes('mouse') || cat === '1') {
+    return 'https://images.unsplash.com/photo-1496181130204-755241544e35?w=600&auto=format&fit=crop&q=60';
+  }
+  if (name.includes('phone') || name.includes('mobile') || name.includes('smartphone') || name.includes('iphone') || cat === '3') {
+    return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=60';
+  }
+  if (name.includes('shirt') || name.includes('jeans') || name.includes('jacket') || name.includes('shoes') || name.includes('dress') || name.includes('socks') || cat === '2') {
+    return 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&auto=format&fit=crop&q=60';
+  }
+  if (name.includes('fryer') || name.includes('blender') || name.includes('cookware') || name.includes('kitchen') || name.includes('kettle') || cat === '4') {
+    return 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=60';
+  }
+  if (name.includes('novel') || name.includes('book') || name.includes('history') || name.includes('python') || cat === '5') {
+    return 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&auto=format&fit=crop&q=60';
+  }
+  if (name.includes('ball') || name.includes('dumbbells') || name.includes('sports') || name.includes('yoga') || name.includes('fitness') || cat === '6') {
+    return 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&auto=format&fit=crop&q=60';
+  }
+  
+  return `https://placehold.co/600x400/e2e8f0/475569?text=${encodeURIComponent(productName)}`;
+}

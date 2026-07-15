@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaTimes, FaMinus, FaTrashAlt, FaPaperPlane, FaRobot, FaUser } from 'react-icons/fa';
 import { Message } from './index';
-import { getImageUrl } from '../../utils/formatters';
+import { getImageUrl, getFallbackImageUrl } from '../../utils/formatters';
 
 interface ChatbotWindowProps {
   isOpen: boolean;
@@ -236,6 +236,9 @@ const ChatbotWindow: React.FC<ChatbotWindowProps> = ({
                             src={getImageUrl(product.image_url)}
                             alt={product.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = getFallbackImageUrl(product.name);
+                            }}
                           />
                         </div>
 

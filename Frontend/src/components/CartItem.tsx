@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { getImageUrl, formatPrice } from '../utils/formatters';
+import { getImageUrl, formatPrice, getFallbackImageUrl } from '../utils/formatters';
 import type { CartItem as CartItemType } from '../types';
 import { FaTrashAlt, FaMinus, FaPlus } from 'react-icons/fa';
 
@@ -32,6 +32,9 @@ const CartItem: React.FC<CartItemProps> = ({
             src={getImageUrl(item.image_url)}
             alt={item.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = getFallbackImageUrl(item.name, item.category_id);
+            }}
           />
         </div>
       </Link>

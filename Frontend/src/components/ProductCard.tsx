@@ -7,7 +7,7 @@ import { toast } from '../store/toastStore';
 import cartService from '../services/cartService';
 import productService from '../services/productService';
 import { QUERY_KEYS } from '../constants';
-import { formatPrice, deriveRating, deriveReviewCount, getImageUrl } from '../utils/formatters';
+import { formatPrice, deriveRating, deriveReviewCount, getImageUrl, getFallbackImageUrl } from '../utils/formatters';
 import type { Product } from '../types';
 import { FaStar, FaStarHalfAlt, FaShoppingCart, FaBolt } from 'react-icons/fa';
 
@@ -99,6 +99,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             src={getImageUrl(product.image_url)}
             alt={product.name}
             className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
+            onError={(e) => {
+              e.currentTarget.src = getFallbackImageUrl(product.name, product.category_id);
+            }}
           />
           {isOutOfStock && (
             <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 flex items-center justify-center">

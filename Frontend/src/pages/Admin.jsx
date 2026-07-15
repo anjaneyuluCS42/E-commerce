@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '../store/toastStore.ts';
 import { useWebSocket } from '../hooks/useWebSocket';
 import api from '../api/client';
-import { formatPrice, formatDate, getImageUrl } from '../utils/formatters.ts';
+import { formatPrice, formatDate, getImageUrl, getFallbackImageUrl } from '../utils/formatters.ts';
 import productService from '../services/productService';
 import { TableRowSkeleton } from '../components/ui/SkeletonLoader.tsx';
 import ErrorState from '../components/ui/ErrorState.tsx';
@@ -437,7 +437,14 @@ export default function Admin() {
                 {products.slice(0, 4).map((p) => (
                   <div key={p.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600">
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 flex-shrink-0">
-                      <img src={getImageUrl(p.image_url)} alt={p.name} className="w-full h-full object-cover" />
+                      <img
+                        src={getImageUrl(p.image_url)}
+                        alt={p.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = getFallbackImageUrl(p.name, p.category_id);
+                        }}
+                      />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{p.name}</p>
@@ -488,7 +495,14 @@ export default function Admin() {
                             <td className="px-4 py-3 text-sm font-bold text-gray-500 dark:text-gray-400">#{p.id}</td>
                             <td className="px-4 py-3">
                               <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                                <img src={getImageUrl(p.image_url)} alt={p.name} className="w-full h-full object-cover" />
+                                <img
+                                  src={getImageUrl(p.image_url)}
+                                  alt={p.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = getFallbackImageUrl(p.name, p.category_id);
+                                  }}
+                                />
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 max-w-xs truncate">{p.name}</td>

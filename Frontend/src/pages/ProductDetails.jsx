@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import productService from '../services/productService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProductCard from '../components/ProductCard.tsx';
-import { getImageUrl } from '../utils/formatters.ts';
+import { getImageUrl, getFallbackImageUrl } from '../utils/formatters.ts';
 import {
   FaStar, FaStarHalfAlt, FaShoppingCart, FaBolt, FaCheckCircle,
   FaShieldAlt, FaUndo, FaTruck, FaHeadset, FaChevronLeft, FaChevronRight,
@@ -197,6 +197,9 @@ export default function ProductDetails() {
                   alt={product.name}
                   className="max-h-80 max-w-full object-contain transition-all duration-500 ease-in-out transform hover:scale-105"
                   key={activeImageIndex}
+                  onError={(e) => {
+                    e.currentTarget.src = getFallbackImageUrl(product.name, product.category_id);
+                  }}
                 />
                 {productImages.length > 1 && (
                   <>

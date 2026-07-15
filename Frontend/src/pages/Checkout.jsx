@@ -6,8 +6,7 @@ import { useCart } from '../hooks/useCart';
 import { usePlaceOrder } from '../hooks/useOrders';
 import { checkoutSchema } from '../schemas/checkoutSchema.ts';
 import { toast } from '../store/toastStore.ts';
-import { formatPrice } from '../utils/formatters.ts';
-import { getImageUrl } from '../utils/formatters.ts';
+import { formatPrice, getImageUrl, getFallbackImageUrl } from '../utils/formatters.ts';
 import { FaMapMarkerAlt, FaCreditCard, FaCheckCircle, FaSpinner, FaExclamationCircle } from 'react-icons/fa';
 
 // Individual form field with error display
@@ -274,7 +273,14 @@ export default function Checkout() {
             {cartItems.map((item) => (
               <div key={item.id} className="flex gap-3 py-3 items-center">
                 <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden border dark:border-gray-600 flex-shrink-0">
-                  <img src={getImageUrl(item.image_url)} alt={item.name} className="w-full h-full object-cover" />
+                  <img
+                    src={getImageUrl(item.image_url)}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = getFallbackImageUrl(item.name, item.category_id);
+                    }}
+                  />
                 </div>
                 <div className="flex-grow min-w-0">
                   <p className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">{item.name}</p>
