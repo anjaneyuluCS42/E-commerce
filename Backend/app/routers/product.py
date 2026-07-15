@@ -268,9 +268,7 @@ async def update_product(
     await db.commit()
 
     # CLEAR CACHE
-    await redis_client.delete(
-        "all_products"
-    )
+    await clear_products_cache()
 
     await db.refresh(product)
 

@@ -305,9 +305,11 @@ async def download_invoice(
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    # Fetch the order to check ownership
+    # Fetch the order with items and products to check ownership
     result = await db.execute(
-        select(Order).where(Order.id == order_id)
+        select(Order)
+        .where(Order.id == order_id)
+        .options(selectinload(Order.items).selectinload(OrderItem.product))
     )
     order = result.scalar_one_or_none()
     
@@ -321,7 +323,20 @@ async def download_invoice(
     import os
     file_path = f"invoices/invoice_order_{order_id}.pdf"
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Invoice file not found")
+        # Generate the invoice PDF dynamically
+        items_list = []
+        for item in order.items:
+            items_list.append({
+                "product_id": item.product_id,
+                "name": item.product.name if item.product else f"Product ID {item.product_id}",
+                "quantity": item.quantity,
+                "price": item.price
+            })
+        from app.services.pdf_service import generate_invoice_pdf
+        try:
+            generate_invoice_pdf(order.id, current_user.email, order.total_price, items_list)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to generate invoice: {str(e)}")
         
     from fastapi.responses import FileResponse
     return FileResponse(file_path, media_type="application/pdf", filename=f"invoice_order_{order_id}.pdf")

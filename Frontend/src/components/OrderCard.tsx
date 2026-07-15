@@ -6,7 +6,6 @@ import type { Order } from '../types';
 import {
   FaCheckCircle, FaHourglassHalf, FaBoxOpen, FaTimesCircle, FaCircle,
 } from 'react-icons/fa';
-import { useTaskStatus } from '../hooks/useTaskStatus';
 import orderService from '../services/orderService';
 
 interface OrderCardProps {
@@ -33,39 +32,26 @@ const PROGRESS_MAP: Record<string, number> = {
 const STEPS = ['Order Placed', 'Processing', 'Shipped', 'Delivered'];
 
 const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
-  const { status, progress: taskProgress, startPolling, isPolling } = useTaskStatus();
   const [showTracking, setShowTracking] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const handleDownloadInvoice = async () => {
     try {
-      const response = await orderService.triggerInvoice(order.id);
-      if (response.task_id) {
-        startPolling(response.task_id);
-      }
+      setDownloading(true);
+      const blob = await orderService.downloadInvoice(order.id);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice_order_${order.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
     } catch (err: any) {
-      console.error('Invoice generation trigger failed:', err);
+      console.error('Invoice download failed:', err);
+    } finally {
+      setDownloading(false);
     }
   };
-
-  useEffect(() => {
-    if (status === 'SUCCESS' && !isPolling) {
-      const download = async () => {
-        try {
-          const blob = await orderService.downloadInvoice(order.id);
-          const url = window.URL.createObjectURL(new Blob([blob]));
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', `invoice_order_${order.id}.pdf`);
-          document.body.appendChild(link);
-          link.click();
-          link.parentNode?.removeChild(link);
-        } catch (err) {
-          console.error('Invoice download failed:', err);
-        }
-      };
-      download();
-    }
-  }, [status, isPolling, order.id]);
 
   const rawStatus = (order.status || order.order_status || 'processing').toLowerCase();
   const statusKey = rawStatus in ORDER_STATUSES ? rawStatus : 'processing';
@@ -263,14 +249,14 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onCancel }) => {
           </button>
           <button
             onClick={handleDownloadInvoice}
-            disabled={isPolling}
+            disabled={downloading}
             className={`text-xs font-bold border rounded-xl px-4 py-2 transition-colors flex items-center gap-1.5 ${
-              isPolling
+              downloading
                 ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            {isPolling ? `Generating (${taskProgress}%)` : 'Invoice'}
+            {downloading ? 'Downloading...' : 'Invoice'}
           </button>
           {statusKey === 'delivered' && (
             <Link

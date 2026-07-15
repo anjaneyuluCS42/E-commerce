@@ -7,9 +7,10 @@ import productService from '../services/productService';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProductCard from '../components/ProductCard.tsx';
 import { getImageUrl, getFallbackImageUrl } from '../utils/formatters.ts';
+import { toast } from '../store/toastStore.ts';
 import {
   FaStar, FaStarHalfAlt, FaShoppingCart, FaBolt, FaCheckCircle,
-  FaShieldAlt, FaUndo, FaTruck, FaHeadset, FaChevronLeft, FaChevronRight,
+  FaShieldAlt, FaUndo, FaTruck, FaHeadset, FaChevronLeft, FaChevronRight, FaShareAlt,
 } from 'react-icons/fa';
 
 const getRelatedProducts = (currentProduct, allProducts) => {
@@ -125,6 +126,27 @@ export default function ProductDetails() {
   const setMsg = (text, type = 'success') => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 2500);
+  };
+
+  const handleShareLink = () => {
+    const productUrl = window.location.href;
+    navigator.clipboard.writeText(productUrl)
+      .then(() => {
+        toast.success('Product link copied to clipboard!');
+      })
+      .catch(() => {
+        const textArea = document.createElement('textarea');
+        textArea.value = productUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          toast.success('Product link copied to clipboard!');
+        } catch (err) {
+          toast.error('Failed to copy link.');
+        }
+        document.body.removeChild(textArea);
+      });
   };
 
   const handleAddToCart = async () => {
@@ -280,15 +302,24 @@ export default function ProductDetails() {
                 {product.name}
               </h1>
 
-              {/* Rating Row */}
-              <div className="flex items-center gap-3 mb-4">
-                <span className="bg-green-600 text-white font-black text-xs px-2.5 py-1 rounded flex items-center gap-1">
-                  {rating} <FaStar className="text-xxs" />
-                </span>
-                <div className="flex items-center gap-0.5">
-                  {renderStars(parseFloat(rating))}
+              {/* Rating Row with Share Button */}
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="bg-green-600 text-white font-black text-xs px-2.5 py-1 rounded flex items-center gap-1">
+                    {rating} <FaStar className="text-xxs" />
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    {renderStars(parseFloat(rating))}
+                  </div>
+                  <span className="text-sm text-gray-500">({reviewsCount.toLocaleString()} ratings)</span>
                 </div>
-                <span className="text-sm text-gray-500">({reviewsCount.toLocaleString()} ratings)</span>
+                <button
+                  onClick={handleShareLink}
+                  className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-1.5 transition-colors shadow-sm cursor-pointer"
+                  title="Copy Product Link"
+                >
+                  <FaShareAlt className="text-xs" /> Share Link
+                </button>
               </div>
 
               <div className="border-t border-gray-100 pt-4 mb-4">
