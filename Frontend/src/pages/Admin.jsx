@@ -17,6 +17,15 @@ import {
 } from 'react-icons/fa';
 
 
+const CATEGORY_MAP = {
+  1: 'Electronics',
+  2: 'Fashion',
+  3: 'Mobiles',
+  4: 'Home & Kitchen',
+  5: 'Books',
+  6: 'Sports',
+};
+
 const StatCard = ({ icon: Icon, label, value, color }) => (
   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 flex items-center gap-5 shadow-sm hover:shadow-md transition-shadow">
     <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${color}`}>
@@ -31,7 +40,9 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
 
 function ProductFormModal({ initial, onClose, onSave, isSaving }) {
   const [form, setForm] = useState(
-    initial || { name: '', description: '', price: '', stock: '', category: '' }
+    initial
+      ? { ...initial, category_id: initial.category_id || '' }
+      : { name: '', description: '', price: '', stock: '', category_id: '' }
   );
   const [generating, setGenerating] = useState(false);
   const [imageFiles, setImageFiles] = useState([]);
@@ -90,6 +101,7 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
       ...form,
       price: parseFloat(form.price),
       stock: parseInt(form.stock),
+      category_id: form.category_id ? parseInt(form.category_id) : null,
     }, imageFiles);
   };
 
@@ -146,8 +158,22 @@ function ProductFormModal({ initial, onClose, onSave, isSaving }) {
               <input name="stock" type="number" min="0" value={form.stock} onChange={handleChange} required placeholder="50" className={inputClass} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Category</label>
-              <input name="category" value={form.category} onChange={handleChange} placeholder="Electronics" className={inputClass} />
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1 uppercase tracking-wide">Category *</label>
+              <select
+                name="category_id"
+                value={form.category_id}
+                onChange={handleChange}
+                required
+                className={inputClass}
+              >
+                <option value="">Select Category</option>
+                <option value="1">Electronics</option>
+                <option value="2">Fashion</option>
+                <option value="3">Mobiles</option>
+                <option value="4">Home & Kitchen</option>
+                <option value="5">Books</option>
+                <option value="6">Sports</option>
+              </select>
             </div>
           </div>
           <div>
@@ -272,6 +298,7 @@ export default function Admin() {
         description: data.description,
         price: parseFloat(data.price),
         stock: parseInt(data.stock),
+        category_id: data.category_id,
       };
       const newProduct = await createProduct(filteredData);
       if (imageFiles && imageFiles.length > 0) {
@@ -297,6 +324,7 @@ export default function Admin() {
         description: data.description,
         price: parseFloat(data.price),
         stock: parseInt(data.stock),
+        category_id: data.category_id,
       };
       await updateProduct({ id: editProduct.id, data: filteredData });
       if (imageFiles && imageFiles.length > 0) {
@@ -459,7 +487,7 @@ export default function Admin() {
                                 {p.stock}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{p.category || '—'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{CATEGORY_MAP[p.category_id] || p.category || '—'}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <button

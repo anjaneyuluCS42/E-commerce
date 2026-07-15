@@ -20,6 +20,7 @@ class ProductBase(BaseModel):
     description: str
     price: float
     stock: int
+    category_id: int | None = None
 
 
 class ProductCreate(ProductBase):
@@ -27,6 +28,7 @@ class ProductCreate(ProductBase):
     description: str = Field(..., min_length=5, max_length=10000)
     price: float = Field(..., gt=0, lt=1000000)
     stock: int = Field(..., ge=0, lt=100000)
+    category_id: int | None = Field(None, ge=1)
 
     @field_validator('name', 'description')
     @classmethod

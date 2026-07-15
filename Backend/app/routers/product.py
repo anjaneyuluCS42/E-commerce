@@ -263,6 +263,7 @@ async def update_product(
     product.description = updated_product.description
     product.price = updated_product.price
     product.stock = updated_product.stock
+    product.category_id = updated_product.category_id
 
     await db.commit()
 
