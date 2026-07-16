@@ -46,6 +46,7 @@ async def init_storage_bucket(database_url: str, supabase_key: str):
     bucket_url = f"{supabase_url}/storage/v1/bucket/product-images"
     headers = {
         "Authorization": f"Bearer {supabase_key}",
+        "apikey": supabase_key,
         "Content-Type": "application/json",
     }
 
@@ -111,7 +112,11 @@ async def upload_image(
         return None
 
     upload_url = f"{supabase_url}/storage/v1/object/product-images/{filename}"
-    headers = {"Authorization": f"Bearer {supabase_key}", "Content-Type": content_type}
+    headers = {
+        "Authorization": f"Bearer {supabase_key}",
+        "apikey": supabase_key,
+        "Content-Type": content_type,
+    }
 
     try:
         async with httpx.AsyncClient() as client:

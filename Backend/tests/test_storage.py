@@ -29,6 +29,7 @@ async def test_init_storage_bucket_exists(mock_get):
         "https://kvqccplpvqcjuctjbkre.supabase.co/storage/v1/bucket/product-images",
         headers={
             "Authorization": "Bearer fake-key",
+            "apikey": "fake-key",
             "Content-Type": "application/json",
         },
     )
@@ -53,6 +54,7 @@ async def test_init_storage_bucket_create(mock_get, mock_post):
         "https://kvqccplpvqcjuctjbkre.supabase.co/storage/v1/bucket",
         headers={
             "Authorization": "Bearer fake-key",
+            "apikey": "fake-key",
             "Content-Type": "application/json",
         },
         json={
@@ -88,6 +90,10 @@ async def test_upload_image_success(mock_post):
     )
     mock_post.assert_called_once_with(
         "https://kvqccplpvqcjuctjbkre.supabase.co/storage/v1/object/product-images/test.png",
-        headers={"Authorization": "Bearer fake-key", "Content-Type": "image/png"},
+        headers={
+            "Authorization": "Bearer fake-key",
+            "apikey": "fake-key",
+            "Content-Type": "image/png",
+        },
         content=b"fake-bytes",
     )
