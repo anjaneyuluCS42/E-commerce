@@ -15,11 +15,15 @@ if not REMOTE_URL.startswith("postgresql+asyncpg://"):
     if REMOTE_URL.startswith("postgresql://"):
         REMOTE_URL = REMOTE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
     else:
-        print("Error: Remote URL must start with postgresql:// or postgresql+asyncpg://")
+        print(
+            "Error: Remote URL must start with postgresql:// or postgresql+asyncpg://"
+        )
         sys.exit(1)
+
 
 async def migrate():
     import ssl
+
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
@@ -42,14 +46,16 @@ async def migrate():
 
             print("Creating tables on remote database if they don't exist...")
             try:
-                await remote_conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+                await remote_conn.execute(
+                    text("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+                )
                 await remote_conn.commit()
             except Exception as e:
                 print(f"Warning: Could not create pg_trgm extension: {e}")
 
             def create_tables(connection):
                 Base.metadata.create_all(connection)
-            
+
             await remote_conn.run_sync(create_tables)
             await remote_conn.commit()
             print("Tables verified/created.")
@@ -80,21 +86,27 @@ async def migrate():
                 # Prepare insert statement
                 placeholders = ", ".join([f":{key}" for key in filtered_keys])
                 columns = ", ".join(filtered_keys)
-                insert_stmt = text(f"INSERT INTO {table} ({columns}) VALUES ({placeholders})")
+                insert_stmt = text(
+                    f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
+                )
 
                 # Insert rows
                 for row in rows:
                     row_dict = dict(zip(keys, row))
                     # Pass only non-generated fields
-                    filtered_row_dict = {k: v for k, v in row_dict.items() if k != "search_vector"}
+                    filtered_row_dict = {
+                        k: v for k, v in row_dict.items() if k != "search_vector"
+                    }
                     await remote_conn.execute(insert_stmt, filtered_row_dict)
-                
+
                 await remote_conn.commit()
                 print(f"Successfully migrated {len(rows)} rows for {table}.")
 
                 # Reset sequence for primary key 'id'
                 try:
-                    seq_reset = text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), coalesce(max(id), 1)) FROM {table}")
+                    seq_reset = text(
+                        f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), coalesce(max(id), 1)) FROM {table}"
+                    )
                     await remote_conn.execute(seq_reset)
                     await remote_conn.commit()
                     print(f"Sequence reset for {table}.")
@@ -102,6 +114,7 @@ async def migrate():
                     print(f"Warning: Could not reset sequence for {table}: {e}")
 
             print("Migration completed successfully!")
+
 
 if __name__ == "__main__":
     asyncio.run(migrate())

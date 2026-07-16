@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from app.security.rate_limit import limiter
 
@@ -13,24 +12,14 @@ from app.database import get_db
 
 from app.models.product import Product
 
-from app.schemas.product import (
-    ProductCreate,
-    ProductResponse
-)
+from app.schemas.product import ProductCreate, ProductResponse
 
-from app.auth.oauth2 import (
-    get_current_user,
-    get_current_admin_user
-)
+from app.auth.oauth2 import get_current_user, get_current_admin_user
 
-from app.cache.redis_client import (
-    redis_client
-)
+from app.cache.redis_client import redis_client
 
-router = APIRouter(
-    prefix="/products",
-    tags=["Products"]
-)
+router = APIRouter(prefix="/products", tags=["Products"])
+
 
 async def clear_products_cache():
     await redis_client.delete("all_products")
@@ -48,13 +37,10 @@ async def create_product(
     product: ProductCreate,
     db: AsyncSession = Depends(get_db),
     # Phase 10: Only Admins can create products
-    current_admin = Depends(get_current_admin_user)
+    current_admin=Depends(get_current_admin_user),
 ):
 
-    new_product = Product(
-        **product.dict(),
-        owner_id=current_admin.id
-    )
+    new_product = Product(**product.dict(), owner_id=current_admin.id)
 
     db.add(new_product)
 
@@ -72,6 +58,7 @@ from sqlalchemy import or_, desc, asc, func, case
 from typing import Optional
 from app.models.category import Category
 
+
 # GET ALL PRODUCTS (Advanced Search & Filtering)
 @router.get("", response_model=list[ProductResponse])
 @limiter.limit("30/minute")
@@ -81,15 +68,16 @@ async def get_products(
     category_id: Optional[int] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
-    sort_by: Optional[str] = None, # price_asc, price_desc, newest
+    sort_by: Optional[str] = None,  # price_asc, price_desc, newest
     skip: int = 0,
     limit: int = 1000,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     import json
+
     # Generate unique cache key based on query params
     cache_key = f"products_search:q={search or ''}:cat={category_id or ''}:min={min_price or ''}:max={max_price or ''}:sort={sort_by or ''}:skip={skip}:limit={limit}"
-    
+
     try:
         cached_data = await redis_client.get(cache_key)
         if cached_data:
@@ -115,20 +103,14 @@ async def get_products(
     products = []
     if search:
         search = search.strip()
-        ts_query = func.websearch_to_tsquery('english', search)
+        ts_query = func.websearch_to_tsquery("english", search)
         base_rank = func.ts_rank_cd(Product.search_vector, ts_query)
-        category_boost = case(
-            (Category.name.ilike(f"%{search}%"), 0.5),
-            else_=0.0
-        )
+        category_boost = case((Category.name.ilike(f"%{search}%"), 0.5), else_=0.0)
         total_rank = base_rank + category_boost
 
-        fts_query = (
-            query
-            .outerjoin(Category, Product.category_id == Category.id)
-            .where(
-                (Product.search_vector.bool_op("@@")(ts_query)) | (Category.name.ilike(f"%{search}%"))
-            )
+        fts_query = query.outerjoin(Category, Product.category_id == Category.id).where(
+            (Product.search_vector.bool_op("@@")(ts_query))
+            | (Category.name.ilike(f"%{search}%"))
         )
 
         # Apply sorting/ranking to FTS
@@ -182,19 +164,22 @@ async def get_products(
 
     # Cache results in Redis for 1 hour
     try:
-        serialized = [{
-            "id": p.id,
-            "name": p.name,
-            "description": p.description,
-            "price": p.price,
-            "stock": p.stock,
-            "image_url": p.image_url,
-            "images": p.images or [],
-            "owner_id": p.owner_id,
-            "category_id": p.category_id,
-            "status": p.status,
-            "is_active": p.is_active
-        } for p in products]
+        serialized = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "price": p.price,
+                "stock": p.stock,
+                "image_url": p.image_url,
+                "images": p.images or [],
+                "owner_id": p.owner_id,
+                "category_id": p.category_id,
+                "status": p.status,
+                "is_active": p.is_active,
+            }
+            for p in products
+        ]
         await redis_client.set(cache_key, json.dumps(serialized), ex=3600)
     except Exception:
         pass
@@ -203,67 +188,49 @@ async def get_products(
 
 
 # GET SINGLE PRODUCT
-@router.get("/{product_id}",
-            response_model=ProductResponse)
-async def get_single_product(
-    product_id: int,
-    db: AsyncSession = Depends(get_db)
-):
+@router.get("/{product_id}", response_model=ProductResponse)
+async def get_single_product(product_id: int, db: AsyncSession = Depends(get_db)):
 
-    result = await db.execute(
-        select(Product).where(
-            Product.id == product_id
-        )
-    )
+    result = await db.execute(select(Product).where(Product.id == product_id))
 
     product = result.scalar_one_or_none()
 
     if not product:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
+        raise HTTPException(status_code=404, detail="Product not found")
 
     return product
 
 
 # UPDATE PRODUCT
-@router.put("/{product_id}",
-            response_model=ProductResponse)
+@router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: int,
     updated_product: ProductCreate,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
 
-    result = await db.execute(
-        select(Product).where(
-            Product.id == product_id
-        )
-    )
+    result = await db.execute(select(Product).where(Product.id == product_id))
 
     product = result.scalar_one_or_none()
 
     if not product:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
+        raise HTTPException(status_code=404, detail="Product not found")
 
     # OWNER CHECK
     if product.owner_id != current_user.id and current_user.role != "admin":
 
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized"
-        )
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     product.name = updated_product.name
     product.description = updated_product.description
     product.price = updated_product.price
     product.stock = updated_product.stock
     product.category_id = updated_product.category_id
+    if updated_product.image_url is not None:
+        product.image_url = updated_product.image_url
+    if updated_product.images is not None:
+        product.images = updated_product.images
 
     await db.commit()
 
@@ -280,30 +247,20 @@ async def update_product(
 async def delete_product(
     product_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
 
-    result = await db.execute(
-        select(Product).where(
-            Product.id == product_id
-        )
-    )
+    result = await db.execute(select(Product).where(Product.id == product_id))
 
     product = result.scalar_one_or_none()
 
     if not product:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
+        raise HTTPException(status_code=404, detail="Product not found")
 
     # OWNER CHECK
     if product.owner_id != current_user.id and current_user.role != "admin":
 
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized"
-        )
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     await db.delete(product)
 
@@ -312,9 +269,7 @@ async def delete_product(
     # CLEAR CACHE
     await clear_products_cache()
 
-    return {
-        "message": "Product deleted"
-    }
+    return {"message": "Product deleted"}
 
 
 # UPLOAD PRODUCT IMAGE
@@ -325,30 +280,20 @@ async def upload_product_image(
     product_id: int,
     files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
 
-    result = await db.execute(
-        select(Product).where(
-            Product.id == product_id
-        )
-    )
+    result = await db.execute(select(Product).where(Product.id == product_id))
 
     product = result.scalar_one_or_none()
 
     if not product:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
+        raise HTTPException(status_code=404, detail="Product not found")
 
     # OWNER CHECK
     if product.owner_id != current_user.id and current_user.role != "admin":
 
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized"
-        )
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     filepaths = []
     for file in files:
@@ -356,7 +301,7 @@ async def upload_product_image(
         if not file.content_type or not file.content_type.startswith("image/"):
             raise HTTPException(
                 status_code=400,
-                detail=f"Only image files allowed. File '{file.filename}' is invalid."
+                detail=f"Only image files allowed. File '{file.filename}' is invalid.",
             )
 
         # UNIQUE FILE NAME
@@ -365,14 +310,14 @@ async def upload_product_image(
 
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
+
         filepaths.append(filepath)
 
     existing_images = list(product.images) if product.images else []
     for filepath in filepaths:
         if filepath not in existing_images:
             existing_images.append(filepath)
-            
+
     # Cap at 5 images
     existing_images = existing_images[:5]
     product.images = existing_images
@@ -389,36 +334,27 @@ async def upload_product_image(
     return {
         "message": "Images uploaded",
         "image_url": product.image_url,
-        "images": product.images
+        "images": product.images,
     }
+
 
 # DELETE PRODUCT IMAGES (Admin only)
 @router.delete("/{product_id}/images")
 async def delete_product_images(
     product_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user=Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(Product).where(
-            Product.id == product_id
-        )
-    )
+    result = await db.execute(select(Product).where(Product.id == product_id))
 
     product = result.scalar_one_or_none()
 
     if not product:
-        raise HTTPException(
-            status_code=404,
-            detail="Product not found"
-        )
+        raise HTTPException(status_code=404, detail="Product not found")
 
     # OWNER CHECK
     if product.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized"
-        )
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     product.images = []
     product.image_url = None
@@ -430,42 +366,39 @@ async def delete_product_images(
 
     await db.refresh(product)
 
-    return {
-        "message": "Images cleared",
-        "image_url": None,
-        "images": []
-    }
+    return {"message": "Images cleared", "image_url": None, "images": []}
+
 
 @router.post("/import", response_model=dict)
 async def import_products_csv(
-    file: UploadFile = File(...),
-    current_admin = Depends(get_current_admin_user)
+    file: UploadFile = File(...), current_admin=Depends(get_current_admin_user)
 ):
-    if not file.filename.endswith('.csv'):
+    if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
-        
+
     import os
     import uuid
     import shutil
-    
+
     # Ensure temporary upload directory exists
     temp_dir = "uploads/imports"
     os.makedirs(temp_dir, exist_ok=True)
-    
+
     # Save the uploaded CSV file temporarily
     file_name = f"import_{uuid.uuid4()}.csv"
     file_path = os.path.join(temp_dir, file_name)
-    
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
+
     # Trigger Celery background task
     from app.tasks.order_tasks import bulk_import_products_task
+
     task = bulk_import_products_task.delay(file_path, current_admin.id)
-    
+
     # Store task ownership in Redis for 24 hours
     from app.cache.redis_client import redis_client
-    await redis_client.set(f"task_owner:{task.id}", current_admin.id, ex=86400)
-    
-    return {"task_id": task.id, "status": "QUEUED"}
 
+    await redis_client.set(f"task_owner:{task.id}", current_admin.id, ex=86400)
+
+    return {"task_id": task.id, "status": "QUEUED"}

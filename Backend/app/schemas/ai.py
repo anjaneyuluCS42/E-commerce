@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+
 class ProductRecommendation(BaseModel):
     id: int
     name: str
@@ -12,8 +13,10 @@ class ProductRecommendation(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ChatRequest(BaseModel):
     message: str
+
 
 class ChatResponse(BaseModel):
     text: str
@@ -23,10 +26,12 @@ class ChatResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class GenerateDescriptionRequest(BaseModel):
     name: str
     category: Optional[str] = None
     price: Optional[float] = None
+
 
 class GenerateDescriptionResponse(BaseModel):
     description: str

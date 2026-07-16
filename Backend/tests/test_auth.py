@@ -1,6 +1,7 @@
 import pytest
 import uuid
 
+
 @pytest.mark.asyncio
 async def test_register_user(client):
 
@@ -11,8 +12,8 @@ async def test_register_user(client):
         json={
             "username": f"testuser_{unique_id}",
             "email": f"{unique_id}@gmail.com",
-            "password": "test123"
-        }
+            "password": "test123",
+        },
     )
 
     assert response.status_code == 200

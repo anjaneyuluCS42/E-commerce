@@ -1,10 +1,11 @@
 import random
 from locust import HttpUser, task, between
 
+
 class ECommerceUser(HttpUser):
     # Think time between tasks (simulate real user delay)
     wait_time = between(1, 3)
-    
+
     token = None
     user_email = None
 
@@ -15,12 +16,9 @@ class ECommerceUser(HttpUser):
     def login(self):
         # Generate random user details or log in with the default seeded user
         self.user_email = "anji@gmail.com"
-        payload = {
-            "username": self.user_email,
-            "password": "password123"
-        }
+        payload = {"username": self.user_email, "password": "password123"}
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        
+
         response = self.client.post("/auth/login", data=payload, headers=headers)
         if response.status_code == 200:
             data = response.json()
@@ -51,22 +49,19 @@ class ECommerceUser(HttpUser):
         """Simulate the checkout process."""
         if not self.token:
             return
-            
+
         product_id = random.randint(1, 20)
-        
+
         # 1. Add item to cart
-        cart_payload = {
-            "product_id": product_id,
-            "quantity": 1
-        }
+        cart_payload = {"product_id": product_id, "quantity": 1}
         self.client.post("/cart", json=cart_payload)
-        
+
         # 2. View cart
         self.client.get("/cart")
-        
+
         # 3. Place order
         order_payload = {
             "shipping_address": "123 Test Street, Hyderabad",
-            "payment_method": "credit_card"
+            "payment_method": "credit_card",
         }
         self.client.post("/orders", json=order_payload)

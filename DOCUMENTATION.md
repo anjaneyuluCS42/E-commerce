@@ -202,3 +202,27 @@ The database seeding utility in [seed_db.py](file:///d:/knowledge_factory_intern
    * **Role**: `admin`
 3. Installs 6 categories (`Electronics`, `Fashion`, `Mobiles`, `Home & Kitchen`, `Books`, `Sports`).
 4. Preloads **120 unique products** (20 products per category) with custom names, specs, stock quantities, and prices to provide a rich dataset for the AI Chatbot out of the box.
+
+---
+
+## 6. Repository Governance & Branch Protection
+
+To maintain the production integrity of the codebase and prevent unstable code from reaching deployment, the following branch protection rules must be configured in GitHub settings for the `main` branch:
+
+1. **Require Pull Request Reviews**:
+   - Direct merges to `main` are restricted. All modifications must be submitted via a Pull Request (PR).
+   - Require at least **1 approving review** from designated code owners or team leads before a PR can be merged.
+
+2. **Require Status Checks to Pass**:
+   - Before merging, all automated status checks in the CI/CD pipeline must pass successfully.
+   - The specific required checks are:
+     - `Backend Lint and Test` (ensuring Black formatting, Flake8 rules, and Pytest suites succeed).
+     - `Frontend Lint and Test` (ensuring ESLint rules and Vitest suites succeed).
+     - `Docker Build & Push` dry-run checks.
+
+3. **Prevent Direct Pushes to Main**:
+   - Restrict all write access to `main`, forcing developers to use branch-based workflows and PRs.
+   - Block force-pushes (`git push --force`) to protect the commit history.
+
+4. **Restrict Branch Deletions**:
+   - Prevent deletion of the `main` branch.

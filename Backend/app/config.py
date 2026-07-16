@@ -6,23 +6,27 @@ import os
 # and avoid "unknown command HELLO" error on celery/redis startup.
 try:
     import redis.connection
+
     original_init = redis.connection.Connection.__init__
+
     def patched_init(self, *args, **kwargs):
-        if 'protocol' not in kwargs:
-            kwargs['protocol'] = 2
+        if "protocol" not in kwargs:
+            kwargs["protocol"] = 2
         original_init(self, *args, **kwargs)
+
     redis.connection.Connection.__init__ = patched_init
-    redis.connection.Connection._configure_maintenance_notifications = lambda *args, **kwargs: None
+    redis.connection.Connection._configure_maintenance_notifications = (
+        lambda *args, **kwargs: None
+    )
 except ImportError:
     pass
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
     ENVIRONMENT: str = "development"
@@ -34,12 +38,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REDIS_URL: str = "redis://localhost:6379"
     ROOT_PATH: str = ""
-    
+
     # SMTP Email Configuration
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
+
 
 settings = Settings()
 
@@ -56,4 +61,4 @@ ROOT_PATH = settings.ROOT_PATH
 SMTP_HOST = settings.SMTP_HOST
 SMTP_PORT = settings.SMTP_PORT
 SMTP_USER = settings.SMTP_USER
-SMTP_PASSWORD = settings.SMTP_PASSWORD
+SMTP_PASSWORD = settings.SMTP_PASSWORD

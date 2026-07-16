@@ -2,10 +2,12 @@ from pydantic import BaseModel, computed_field
 from typing import List, Optional
 from datetime import datetime
 
+
 class CheckoutRequest(BaseModel):
     shipping_address: str
     payment_method: str
     coupon_code: Optional[str] = None
+
 
 class OrderItemResponse(BaseModel):
     id: int
@@ -15,6 +17,7 @@ class OrderItemResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class OrderResponse(BaseModel):
     id: int

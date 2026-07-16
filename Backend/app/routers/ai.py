@@ -6,7 +6,7 @@ from app.schemas.ai import (
     ChatRequest,
     ChatResponse,
     GenerateDescriptionRequest,
-    GenerateDescriptionResponse
+    GenerateDescriptionResponse,
 )
 from app.services.ai import AIService
 from app.security.rate_limit import limiter
@@ -16,17 +16,13 @@ import logging
 # Set up logging for error tracking
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/ai",
-    tags=["AI"]
-)
+router = APIRouter(prefix="/ai", tags=["AI"])
+
 
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
 @limiter.limit("15/minute")
 async def chat_with_assistant(
-    payload: ChatRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    payload: ChatRequest, request: Request, db: AsyncSession = Depends(get_db)
 ):
     """
     Exposes chatbot AI response service.
@@ -38,22 +34,22 @@ async def chat_with_assistant(
     except ValueError as val_err:
         logger.warning(f"Validation error in chat assistant: {str(val_err)}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(val_err)
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(val_err)
         )
     except Exception as exc:
-        logger.error(f"Unexpected error in AI Chat Assistant: {str(exc)}", exc_info=True)
+        logger.error(
+            f"Unexpected error in AI Chat Assistant: {str(exc)}", exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while generating a response. Please try again later."
+            detail="An error occurred while generating a response. Please try again later.",
         )
+
 
 @router.post("/chat/stream")
 @limiter.limit("15/minute")
 async def chat_with_assistant_stream(
-    payload: ChatRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
+    payload: ChatRequest, request: Request, db: AsyncSession = Depends(get_db)
 ):
     """
     Streams chatbot AI response word-by-word (SSE format).
@@ -63,36 +59,40 @@ async def chat_with_assistant_stream(
         return StreamingResponse(generator, media_type="text/event-stream")
     except ValueError as val_err:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(val_err)
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(val_err)
         )
     except Exception as exc:
-        logger.error(f"Unexpected error in AI Chat Streaming: {str(exc)}", exc_info=True)
+        logger.error(
+            f"Unexpected error in AI Chat Streaming: {str(exc)}", exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while streaming response. Please try again later."
+            detail="An error occurred while streaming response. Please try again later.",
         )
 
-@router.post("/generate-description", response_model=GenerateDescriptionResponse, status_code=status.HTTP_200_OK)
+
+@router.post(
+    "/generate-description",
+    response_model=GenerateDescriptionResponse,
+    status_code=status.HTTP_200_OK,
+)
 @limiter.limit("10/minute")
 async def generate_product_description(
     payload: GenerateDescriptionRequest,
     request: Request,
-    current_admin = Depends(get_current_admin_user)
+    current_admin=Depends(get_current_admin_user),
 ):
     """
     Auto-generates a product description using AI. Requires Admin privileges.
     """
     try:
         description = await AIService.generate_product_description(
-            payload.name,
-            payload.category,
-            payload.price
+            payload.name, payload.category, payload.price
         )
         return {"description": description}
     except Exception as exc:
         logger.error(f"Failed to generate description: {str(exc)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate product description."
+            detail="Failed to generate product description.",
         )

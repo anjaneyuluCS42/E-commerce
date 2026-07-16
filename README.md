@@ -1,5 +1,7 @@
 # 🛒 ShopHub - Full-Stack AI-Powered E-Commerce Platform
 
+[![ShopHub CI/CD Pipeline](https://github.com/anjaneuyuluCS42/E-commerce/actions/workflows/ci.yml/badge.svg)](https://github.com/anjaneuyuluCS42/E-commerce/actions/workflows/ci.yml)
+
 ShopHub is a production-grade, full-stack e-commerce application modeled after real-time giants like Amazon and Flipkart. It features a modern React Single Page Application (SPA), a high-concurrency async FastAPI backend, real-time customer support WebSockets, distributed Celery task queues, and an intelligent AI Shopping Assistant powered by LLMs with multi-provider fallback logic.
 
 ---
@@ -225,6 +227,45 @@ Launch the background queues (requires Redis running locally):
    npm run dev
    ```
 4. Access the client application at [http://localhost:5173](http://localhost:5173).
+
+---
+
+## 🚀 CI/CD Pipeline & Automated Deployment
+
+ShopHub features a production-grade automated CI/CD pipeline built with **GitHub Actions**.
+
+### CI/CD Workflow Architecture
+The pipeline is defined in [.github/workflows/ci.yml](file:///.github/workflows/ci.yml) and executes the following steps upon every push or pull request to the `main` branch:
+
+1. **Backend Checks**:
+   - Spawns isolated PostgreSQL 15 and Redis 7 service containers.
+   - Installs Backend dependencies including development tools (`black`, `flake8`, `pytest`, `pytest-asyncio`, `httpx`).
+   - Runs code style consistency checks via **Black**.
+   - Runs linting checks via **Flake8**.
+   - Runs the backend integration and unit test suite via **Pytest**.
+
+2. **Frontend Checks**:
+   - Installs frontend packages via deterministically optimized npm dependency restores (`npm ci`).
+   - Runs code quality analysis using **ESLint**.
+   - Runs frontend components and state unit testing via **Vitest**.
+
+3. **Docker Build & Push**:
+   - Runs dry-run image compiles on all incoming pull requests to catch syntax and build issues.
+   - Upon successful merges or direct pushes to `main`, builds and tags production Docker images for both `shophub-backend` and `shophub-frontend`.
+   - Secures registry uploads by logging in and pushing compiled images directly to **Docker Hub** using the `latest` tag and the specific commit SHA.
+
+---
+
+### Required GitHub Secrets
+To support automated Docker compilation and tests, the following environment secrets must be configured in your GitHub Repository Settings (`Settings` > `Secrets and variables` > `Actions`):
+
+| Secret Key | Description | Required For |
+| :--- | :--- | :--- |
+| `DOCKER_USERNAME` | Your Docker Hub Username. | Docker Hub Login & Image Pathing |
+| `DOCKER_PASSWORD` | Your Docker Hub Password or Access Token. | Docker Hub Login & Image Pathing |
+| `DATABASE_URL` | PostgreSQL connection string for testing environment. | Backend Test Suite Setup |
+| `JWT_SECRET` | Secret key used to encrypt and verify JSON Web Tokens. | Backend Session Security Testing |
+| `GEMINI_API_KEY` | Google Gemini API Key for LLM fallback testing. | AI Chatbot RAG Integration Tests |
 
 ---
 

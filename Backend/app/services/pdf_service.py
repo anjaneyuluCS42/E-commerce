@@ -7,7 +7,10 @@ from reportlab.lib.colors import HexColor
 INVOICE_DIR = "invoices"
 os.makedirs(INVOICE_DIR, exist_ok=True)
 
-def generate_invoice_pdf(order_id: int, user_email: str, total_price: float, items: list) -> str:
+
+def generate_invoice_pdf(
+    order_id: int, user_email: str, total_price: float, items: list
+) -> str:
     """
     Generates a PDF invoice and saves it to the disk.
     Returns the file path.
