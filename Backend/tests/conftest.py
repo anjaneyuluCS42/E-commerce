@@ -22,8 +22,11 @@ app.dependency_overrides[get_db] = override_get_db
 
 @pytest_asyncio.fixture
 async def client():
+    from sqlalchemy import text
+    from app.database import engine as prod_engine
 
     async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
 
     transport = ASGITransport(app=app)
@@ -33,3 +36,4 @@ async def client():
         yield ac
 
     await engine.dispose()
+    await prod_engine.dispose()
