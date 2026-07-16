@@ -22,6 +22,10 @@ FROM python:3.11-slim AS production
 
 WORKDIR /app
 
+# Create a non-root user and group
+RUN groupadd -g 10001 appgroup && \
+    useradd -u 10001 -g appgroup -m -s /bin/bash appuser
+
 # Install runtime system dependencies (libpq5 for PostgreSQL client connectivity)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
@@ -31,12 +35,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy project files
-COPY . .
+# Copy project files with ownership
+COPY --chown=appuser:appgroup . .
 
-# Ensure upload and secure directories exist
-RUN mkdir -p uploads/product_images uploads/imports invoices
+# Ensure upload and secure directories exist and are owned by appuser
+RUN mkdir -p uploads/product_images uploads/imports invoices && \
+    chown -R appuser:appgroup /app
+
+USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]

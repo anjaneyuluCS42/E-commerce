@@ -306,6 +306,16 @@ async def upload_product_image(
                 detail=f"Only image files allowed. File '{file.filename}' is invalid.",
             )
 
+        # Enforce 5MB file size limit
+        file.file.seek(0, 2)
+        size = file.file.tell()
+        file.file.seek(0)
+        if size > 5 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{file.filename}' exceeds the maximum allowed size of 5MB.",
+            )
+
         # UNIQUE FILE NAME
         filename = f"{uuid.uuid4()}_{file.filename}"
 

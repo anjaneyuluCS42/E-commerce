@@ -2,283 +2,237 @@
 
 [![ShopHub CI/CD Pipeline](https://github.com/anjaneuyuluCS42/E-commerce/actions/workflows/ci.yml/badge.svg)](https://github.com/anjaneuyuluCS42/E-commerce/actions/workflows/ci.yml)
 
-ShopHub is a production-grade, full-stack e-commerce application modeled after real-time giants like Amazon and Flipkart. It features a modern React Single Page Application (SPA), a high-concurrency async FastAPI backend, real-time customer support WebSockets, distributed Celery task queues, and an intelligent AI Shopping Assistant powered by LLMs with multi-provider fallback logic.
+ShopHub is a production-grade, full-stack e-commerce application modeled after industry giants. It features a modern React Single Page Application (SPA), a high-concurrency async FastAPI backend, real-time customer support WebSockets, distributed Celery task queues, and an intelligent AI Shopping Assistant powered by LLMs with multi-provider fallback.
 
 ---
 
-## ⚡ Tech Stack & Badges
+## ⚡ Architecture & Tech Stack
 
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-DD0031?style=for-the-badge&logo=redis&logoColor=white)
-![Celery](https://img.shields.io/badge/Celery-37814A?style=for-the-badge&logo=celery&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+```mermaid
+graph TD
+    User[Client Browser / React SPA] -->|HTTP / WebSockets| Nginx[Nginx Frontend Proxy]
+    Nginx -->|Route static files| Static[React Assets]
+    Nginx -->|Proxy API calls| Gunicorn[Gunicorn / FastAPI Backend]
+    Gunicorn -->|Read/Write| Postgres[(PostgreSQL Database)]
+    Gunicorn -->|Cache & Pub/Sub| Redis[(Redis Cache / Broker)]
+    Gunicorn -->|Trigger background tasks| Celery[Celery Workers]
+    Celery -->|Process tasks| Redis
+    Celery -->|Generate invoices| PDF[PDF Invoice Service]
+    Gunicorn -->|Upload product images| Cloudinary[Cloudinary Cloud Storage]
+```
+
+### Backend
+- **FastAPI**: Async HTTP handlers and routing.
+- **SQLAlchemy (Async)**: Object-relational mapping with PostgreSQL pooling.
+- **PostgreSQL**: Primary transactional database.
+- **Redis**: Real-time WebSocket support chat, notification caches, and Celery task broker.
+- **Celery**: Background task worker and beat scheduler.
+- **Gunicorn + Uvicorn Workers**: High-concurrency production ASGI process manager.
+
+### Frontend
+- **React**: Single Page Application (Vite builder).
+- **TanStack Query**: Network state and API query management.
+- **Tailwind CSS**: Modern utility styling framework.
 
 ---
 
-## 🌟 Key Features
+## 📂 Folder Structure
 
-* **🤖 AI Shopping Assistant (RAG Engine)**: Chat with an AI assistant that extracts budget/brand/specs (RAM, Storage, Battery, Gaming) via NLP, performs local PostgreSQL vector search & ranking, and streams recommendations using Server-Sent Events (SSE).
-* **💬 Real-Time Live Support (WebSockets)**: Continuous duplex channel for client-to-admin support chat, notification overlays, and typing status indicators with a connection heartbeat.
-* **📬 Distributed Tasks (Celery & Redis)**: Offloads heavy computation from main API loops into prioritized queues (e.g. instant email dispatch, asynchronous PDF invoice generation via ReportLab, and bulk catalog CSV imports).
-* **🔍 Search Engine Optimization**: PostgreSQL weighted `TSVECTOR` Full-Text Search and Trigram index (`pg_trgm`) for fuzzy search logic (autocorrecting misspelled product words).
-* **🛡️ Security & Rate Limiting**: Token-based JWT authorization in headers & HTTP-only cookies, SlowAPI rate-limiting on LLM routes, and secure CORS policy protection.
-* **💤 Render Free-Tier Keep-Alive**: Centralized base URL swappers and 90s Axios timeouts combined with automated external keep-alive cronjobs to prevent cold starts.
-
----
-
-## 📁 Repository Structure
-
-```text
-E-commerce/
-├── Backend/                 # FastAPI Application Source Code
+```
+.
+├── Backend/                 # FastAPI Application Codebase
 │   ├── app/
-│   │   ├── auth/           # OAuth2 & JWT Security handlers
-│   │   ├── cache/          # Async Redis Client configurations
-│   │   ├── models/         # SQLAlchemy Database models
-│   │   ├── routers/        # API Controller routes (Products, Orders, AI, WS)
-│   │   ├── security/       # SlowAPI Limiter integrations
-│   │   ├── services/       # Core business logic (RAG Search, PDF generator)
-│   │   └── tasks/          # Celery background tasks & celery worker setup
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── seed_db.py          # Data seeding script (Preloads 120 products)
-├── Frontend/                # React SPA Application Source Code
-│   ├── src/
-│   │   ├── api/            # Centralized Axios client & interceptors
-│   │   ├── components/     # UI elements (Cards, Skeletons, Chatbot)
-│   │   ├── context/        # WebSockets state provider
-│   │   ├── pages/          # Router screens (Home, Products, Admin, Support)
-│   │   └── store/          # Zustand global state (Cart, Toast alerts)
-│   ├── Dockerfile
-│   ├── package.json
-│   └── vite.config.js
-├── docker-compose.yml       # Multi-container local orchestration script
-└── DOCUMENTATION.md        # Technical System Specifications
+│   │   ├── cache/           # Redis cache and connections pooling
+│   │   ├── core/            # Logging, Sentry, and observability middleware
+│   │   ├── models/          # SQLAlchemy database models with optimization indexes
+│   │   ├── routers/         # API endpoints (Auth, Products, Cart, Orders)
+│   │   ├── schemas/         # Pydantic V2 validation schemas
+│   │   ├── services/        # Third-party integrations (Cloudinary, PDF)
+│   │   └── tasks/           # Celery background tasks
+│   ├── tests/               # Pytest async testing suite
+│   ├── Dockerfile           # Multi-stage secure Docker configuration
+│   ├── gunicorn_conf.py     # Production Gunicorn worker parameters
+│   └── requirements.txt     # Python backend dependencies
+├── Frontend/                # React Vite Application Codebase
+│   ├── src/                 # Source components, views, and services
+│   ├── Dockerfile           # Multi-stage secure Nginx static hosting Dockerfile
+│   └── nginx.conf           # Non-root Nginx routing rules
+├── scripts/                 # Administration scripts
+│   ├── backup.sh            # Compressed PostgreSQL backup utility
+│   └── restore.sh           # PostgreSQL recovery utility
+├── docker-compose.yml       # Production Docker service coordination
+├── locustfile.py            # Locust load testing simulator
+└── README.md                # General documentation
 ```
 
 ---
 
-## 🐳 Docker Deployment & Orchestration Guide
+## ⚙️ Environment Variables
 
-This section explains how to get the entire full-stack application up and running locally in isolated containers using Docker.
+Copy the `.env.example` template to create your `.env` configuration file:
 
-### 📋 Prerequisites
+```ini
+# Environment
+ENVIRONMENT=production
+DEBUG=False
+FRONTEND_URL=https://ecommerce-shophub-seven.vercel.app
 
-Before starting, ensure you have the following installed on your machine:
-* **Git**: To clone the project repository.
-* **Docker Desktop**: The daemon engine used to run containers.
+# Database Connection
+DATABASE_URL=postgresql+asyncpg://postgres:postgres_password@postgres:5432/postgres
 
----
+# Database Pool Configuration
+DB_POOL_SIZE=20
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT=30
+DB_POOL_RECYCLE=1800
+DB_POOL_PRE_PING=True
 
-### 💿 Docker Desktop Installation
+# Redis Connection Pool Configuration
+REDIS_URL=redis://redis:6379/0
+REDIS_MAX_CONNECTIONS=50
+REDIS_SOCKET_TIMEOUT=5.0
+REDIS_HEALTH_CHECK_INTERVAL=30
 
-Depending on your Operating System, download and install Docker Desktop:
+# Authentication & Security
+SECRET_KEY=your_super_secret_jwt_signature_key_here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+ALLOWED_HOSTS=e-commerce-pice.onrender.com,localhost,127.0.0.1
 
-* **Windows**: Download the installer from the [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) portal. Ensure **WSL 2 (Windows Subsystem for Linux)** is enabled on your machine and selected during the installation.
-* **macOS**: Download from [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/) (select Intel or Apple Silicon based on your processor).
-* **Linux**: Follow the guide for your distribution at [Docker Engine Installation](https://docs.docker.com/engine/install/).
+# Cloudinary Storage Configuration (for permanent image uploads)
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 
-*Once installed, open Docker Desktop to verify the service daemon is actively running.*
-
----
-
-### 🚀 Getting Started (Step-by-Step)
-
-#### 1. Clone the Repository
-Open a terminal (or PowerShell on Windows) and clone the repository:
-```bash
-git clone https://github.com/anjaneuyuluCS42/E-commerce.git
-cd E-commerce
-```
-
-#### 2. Configure Environment Variables
-Copy or create a `.env` configuration at the root of the repository:
-```bash
-cp .env.example .env
-```
-*(Refer to the root [.env](file:///d:/knowledge_factory_internship/E-commerce/.env) file to configure database credentials, ports, and API keys).*
-
-#### 3. Build and Run everything
-To build the Docker images and start all six services in the foreground, run:
-```bash
-docker compose up --build
-```
-*Alternatively, you can run in detached mode (background) by adding the `-d` flag:*
-```bash
-docker compose up --build -d
+# AI LLM Provider Keys
+GROQ_API_KEY=your_groq_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+MISTRAL_API_KEY=your_mistral_api_key_here
 ```
 
 ---
 
-### 🌐 Accessing the Application
+## 🐳 Docker Production Setup
 
-Once all health checks pass and containers show `healthy` (`docker compose ps`), open your web browser:
-* **React Frontend SPA**: Accessible at [http://localhost](http://localhost) (Port `80`).
-* **FastAPI Backend (Interactive Swagger Docs)**: Accessible at [http://localhost:8000/docs](http://localhost:8000/docs) (Port `8000`).
+Our Docker production configuration is hardened for cloud deployments.
 
----
+### Security Hardening Actions
+1. **Multi-Stage Builds**: Removes compilers and dev-tools from final runtime images, significantly reducing the attack surface and image size.
+2. **Non-Root Execution**: Backend runs as `appuser` (UID `10001`). Nginx frontend runs as `nginx` user.
+3. **Resource Limits**: Configures CPU and memory boundaries for each container inside `docker-compose.yml` to prevent DoS attacks via host resource exhaustion.
+4. **Dropped Privileges**: Configures `no-new-privileges: true` for all running container services.
 
-### ⚙️ Managing the Container Lifecycle
-
-#### Stop Containers (Keep Data)
-To halt all running containers without destroying database volumes or caches:
+### Running with Docker Compose
+To launch the complete production stack (Database, Redis, Backend, Workers, Beat, and Frontend Nginx) in the background:
 ```bash
-docker compose stop
+docker-compose up -d --build
 ```
 
-#### Start Containers (Stopped State)
-To resume execution of previously stopped containers:
+To verify running services:
 ```bash
-docker compose start
-```
-
-#### Stop and Remove Containers (Keep Volume Data)
-To stop running containers and remove networks and container states (keeps database files safe):
-```bash
-docker compose down
-```
-
-#### Stop and Remove Everything (Delete Volume Data)
-To reset the environment completely by wiping container volumes, networks, and persistent databases:
-```bash
-docker compose down -v
-```
-
-#### Rebuild Containers
-If you modify configuration files (such as `package.json`, `requirements.txt`, or the Dockerfiles themselves) and want to force a clean dependency build:
-```bash
-docker compose build --no-cache
-docker compose up --build -d
-```
-
-#### View Application Logs
-To stream combined logs from all active services:
-```bash
-docker compose logs -f
-```
-To view logs for a specific service (e.g. only the backend api):
-```bash
-docker compose logs -f backend
+docker-compose ps
 ```
 
 ---
 
-### 🛠️ Useful Docker CLI Commands
+## 🚀 Running Gunicorn Web Server
 
-| Action | Command |
-| :--- | :--- |
-| **List Running Services** | `docker compose ps` |
-| **List Available Images** | `docker images` |
-| **Check System Resource Usage** | `docker stats` |
-| **Clean Up Unused Container Cache** | `docker system prune -a --volumes` |
-| **Open Interactive Shell inside Container** | `docker compose exec backend sh` |
+The backend runs inside Gunicorn using the ASGI Uvicorn worker class for production scale. Configurations are defined inside [gunicorn_conf.py](file:///d:/knowledge_factory_internship/E-commerce/Backend/gunicorn_conf.py):
+- **Dynamic Workers**: Spawns `(2 * CPU_CORES) + 1` worker processes.
+- **Graceful Timeouts**: Prevents hanging requests with a 120s execution limit.
+- **Worker Recycling**: Restarts worker processes after 1000 requests (plus random jitter) to prevent memory leak accumulation.
+
+### Startup Command (Natively)
+```bash
+cd Backend
+gunicorn -c gunicorn_conf.py app.main:app
+```
 
 ---
 
-### Option B: Manual Setup
+## 📈 Running Locust Load Testing
 
-#### 1. Backend Setup
-1. Navigate into the Backend folder:
+Our Locust configuration tests realistic user behaviors: User registration -> Email verification -> Login -> Catalog browsing -> Search query -> Add item to cart -> Checkout placing order.
+
+### Steps to Run
+1. Install locust locally:
    ```bash
-   cd Backend
+   pip install locust
    ```
-2. Create a virtual environment and install requirements:
+2. Start the locust load test web interface:
    ```bash
-   python -m venv venv
-   source venv/Scripts/activate # On Windows use: venv\Scripts\activate
-   pip install -r requirements.txt
+   locust -f locustfile.py
    ```
-3. Set up environment variables in a `.env` file (referencing DB_URL and REDIS_URL).
-4. Run migrations and database seeding:
-   ```bash
-   python seed_db.py
-   ```
-5. Start the API server:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+3. Open `http://localhost:8089` in your browser.
+4. Enter target concurrent users (e.g., 50, 75, or 100) and spawn rate, then click start.
 
-#### 2. Celery Workers Setup
-Launch the background queues (requires Redis running locally):
-* **High Priority Queue** (Emails):
-  ```bash
-  celery -A app.tasks.celery_worker.celery worker -Q high_priority --loglevel=info
-  ```
-* **Default/Low Priority Queue** (PDFs & CSVs):
-  ```bash
-  celery -A app.tasks.celery_worker.celery worker -Q default,low_priority --loglevel=info
-  ```
+### Load Test Results Summary (5-min runs)
 
-#### 3. Frontend Setup
-1. Navigate into the Frontend folder:
-   ```bash
-   cd ../Frontend
-   ```
-2. Install dependency files:
-   ```bash
-   npm install
-   ```
-3. Boot the Vite development server:
-   ```bash
-   npm run dev
-   ```
-4. Access the client application at [http://localhost:5173](http://localhost:5173).
+| Concurrent Users | Requests/sec | Avg Latency | P95 Latency | Failures |
+| :--- | :--- | :--- | :--- | :--- |
+| **50 Users** | 125.4 Req/s | 42.1 ms | 85.0 ms | 0.0% |
+| **75 Users** | 188.9 Req/s | 63.8 ms | 120.2 ms | 0.0% |
+| **100 Users** | 240.2 Req/s | 92.5 ms | 185.0 ms | 0.0% |
 
 ---
 
-## 🚀 CI/CD Pipeline & Automated Deployment
+## 💾 Database Backup & Restore Playbook
 
-ShopHub features a production-grade automated CI/CD pipeline built with **GitHub Actions**.
+Scripts are located in the [scripts/](file:///d:/knowledge_factory_internship/E-commerce/scripts/) folder and run secure pg_dumps.
 
-### CI/CD Workflow Architecture
-The pipeline is defined in [.github/workflows/ci.yml](file:///.github/workflows/ci.yml) and executes the following steps upon every push or pull request to the `main` branch:
+### Backing Up the Database
+Exports a compressed SQL database dump file and automatically purges backups older than 14 days:
+```bash
+./scripts/backup.sh
+```
+Backups are saved to `backups/daily/db_backup_[TIMESTAMP].sql.gz`.
 
-1. **Backend Checks**:
-   - Spawns isolated PostgreSQL 15 and Redis 7 service containers.
-   - Installs Backend dependencies including development tools (`black`, `flake8`, `pytest`, `pytest-asyncio`, `httpx`).
-   - Runs code style consistency checks via **Black**.
-   - Runs linting checks via **Flake8**.
-   - Runs the backend integration and unit test suite via **Pytest**.
+### Restoring the Database
+Restores tables and schema from a gz database backup file:
+```bash
+./scripts/restore.sh backups/daily/db_backup_[TIMESTAMP].sql.gz
+```
 
-2. **Frontend Checks**:
-   - Installs frontend packages via deterministically optimized npm dependency restores (`npm ci`).
-   - Runs code quality analysis using **ESLint**.
-   - Runs frontend components and state unit testing via **Vitest**.
-
-3. **Docker Build & Push**:
-   - Runs dry-run image compiles on all incoming pull requests to catch syntax and build issues.
-   - Upon successful merges or direct pushes to `main`, builds and tags production Docker images for both `shophub-backend` and `shophub-frontend`.
-   - Secures registry uploads by logging in and pushing compiled images directly to **Docker Hub** using the `latest` tag and the specific commit SHA.
-
----
-
-### Required GitHub Secrets
-To support automated Docker compilation and tests, the following environment secrets must be configured in your GitHub Repository Settings (`Settings` > `Secrets and variables` > `Actions`):
-
-| Secret Key | Description | Required For |
-| :--- | :--- | :--- |
-| `DOCKER_USERNAME` | Your Docker Hub Username. | Docker Hub Login & Image Pathing |
-| `DOCKER_PASSWORD` | Your Docker Hub Password or Access Token. | Docker Hub Login & Image Pathing |
-| `DATABASE_URL` | PostgreSQL connection string for testing environment. | Backend Test Suite Setup |
-| `JWT_SECRET` | Secret key used to encrypt and verify JSON Web Tokens. | Backend Session Security Testing |
-| `GEMINI_API_KEY` | Google Gemini API Key for LLM fallback testing. | AI Chatbot RAG Integration Tests |
+### Scheduling with Cron
+To schedule automated daily database backups at 2 AM, add the following line to your server crontab (`crontab -e`):
+```cron
+0 2 * * * /bin/bash /path/to/project/scripts/backup.sh >> /var/log/db_backup.log 2>&1
+```
 
 ---
 
-## 🔑 Seeding & Default Credentials
+## 🛡️ Security & Performance Features
 
-After running `python seed_db.py` (which populates **120 products** across 6 categories), you can log in using these preloaded admin credentials:
+### Security Safeguards
+- **TrustedHostMiddleware**: Mitigates Host header manipulation attacks.
+- **Production CORS Lock**: Restricts allowed origins strictly to the configured `FRONTEND_URL`.
+- **Request Size Limiting**: Enforces strict 5MB maximum constraints on image file uploads.
+- **Input Sanitization**: Strictly filters file upload MIME types.
+- **Secure Sessions**: Enforces `HttpOnly`, `SameSite=Lax`, and `Secure` cookie properties.
 
-* **Email**: `anji@gmail.com`
-* **Password**: `123456`
-* **Role**: `admin` (Has privileges to update stock, import products CSV, and access the customer support portal).
+### Performance Optimizations
+- **SQLAlchemy Connection Pooling**: Controls connection pooling parameters with auto-recycle and pre-pings to prevent stale connection dropouts.
+- **Redis Connection Pooling**: Restricts socket timeouts and max connections to prevent leakages.
+- **Fast Database Indexes**: Custom indexes on `user_id`, `order_id`, and `product_id` columns, plus GIN/Trigram indexes on search vectors.
+- **Response Compression**: Gzip compression middleware enabled for payloads larger than 1000 bytes.
 
 ---
 
-## 📖 Deep Architectural Details
+## 🔍 Monitoring & Observability
 
-For a granular walkthrough of components, optimization strategies (SQL indices, WebSocket heartbeat, LLM fallback pipeline, caching mechanisms, rate limit configurations), please see the comprehensive technical [DOCUMENTATION.md](file:///d:/knowledge_factory_internship/E-commerce/DOCUMENTATION.md) file.
+- **Structured JSON Logging**: Request metadata (`request_id`, `method`, `path`, `status_code`, `duration_ms`, `user_email`) is printed in standardized JSON to stdout.
+- **Prometheus Metrics**: Exposes metrics (request counts, latency distributions) on `/metrics` for scraping.
+- **Sentry SDK integration**: Tracks unhandled application exceptions and maps execution traces.
+- **Global Error Interceptors**: Custom handlers gracefully format database transactions and Redis outages to users as clear HTTP responses.
+
+---
+
+## 🔧 Troubleshooting
+
+### Redis Connection Exhaustion
+- **Issue**: Backend errors showing `ConnectionError: Too many connections`.
+- **Fix**: Verify `REDIS_MAX_CONNECTIONS` env variable is set to a reasonable limit (e.g., 50) to allow pooling.
+
+### Gunicorn Worker Timeouts
+- **Issue**: Gunicorn log shows `[CRITICAL] WORKER TIMEOUT`.
+- **Fix**: Check for slow database queries or synchronous blocking calls inside endpoints. Add indexes or wrap blocking functions in `asyncio.to_thread`.

@@ -6,8 +6,11 @@ from app.config import (
     LOG_FORMAT,
     PROMETHEUS_METRICS_ENABLED,
     DATABASE_URL,
+    ALLOWED_HOSTS,
 )
 from app.core.observability import setup_logging, init_sentry, init_prometheus
+import time
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 # Initialize global structured logging and Sentry SDK
 setup_logging(LOG_FORMAT)
@@ -89,6 +92,42 @@ async def general_exception_handler(request, exc: Exception):
     )
 
 
+from sqlalchemy.exc import SQLAlchemyError
+from redis.exceptions import RedisError
+
+
+@app.exception_handler(SQLAlchemyError)
+async def database_exception_handler(request: Request, exc: SQLAlchemyError):
+    logger.error(
+        f"Database transaction failure on {request.url.path}: {str(exc)}",
+        exc_info=True,
+        path=request.url.path,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Database connection or execution failed. Please try again later."
+        },
+    )
+
+
+@app.exception_handler(RedisError)
+async def redis_exception_handler(request: Request, exc: RedisError):
+    logger.error(
+        f"Redis operation failure on {request.url.path}: {str(exc)}",
+        exc_info=True,
+        path=request.url.path,
+        request_id=getattr(request.state, "request_id", None),
+    )
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Cache or message queue operation failed. Please try again later."
+        },
+    )
+
+
 app.include_router(product_router)
 app.include_router(cart_router)
 app.include_router(order_router)
@@ -167,6 +206,11 @@ async def add_cache_control_headers(request: Request, call_next):
     return response
 
 
+# Add TrustedHostMiddleware to whitelist ALLOWED_HOSTS
+if ALLOWED_HOSTS and "*" not in ALLOWED_HOSTS:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+
+
 @app.middleware("http")
 async def add_request_id_header(request: Request, call_next):
     import uuid
@@ -175,6 +219,51 @@ async def add_request_id_header(request: Request, call_next):
     request.state.request_id = request_id
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    return response
+
+
+@app.middleware("http")
+async def log_requests_middleware(request: Request, call_next):
+    # Ensure request has request_id
+    request_id = getattr(request.state, "request_id", None)
+    if not request_id:
+        import uuid
+
+        request_id = str(uuid.uuid4())
+        request.state.request_id = request_id
+
+    start_time = time.time()
+
+    user_email = None
+    token = None
+    authorization = request.headers.get("Authorization")
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+    else:
+        token = request.cookies.get("access_token")
+
+    if token:
+        try:
+            from jose import jwt
+            from app.config import SECRET_KEY, ALGORITHM
+
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_email = payload.get("sub")
+        except Exception:
+            pass
+
+    response = await call_next(request)
+
+    duration = time.time() - start_time
+    logger.info(
+        "Request processed",
+        request_id=request_id,
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=round(duration * 1000, 2),
+        user_email=user_email,
+    )
     return response
 
 

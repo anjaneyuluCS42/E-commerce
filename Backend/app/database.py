@@ -3,7 +3,15 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 
-from app.config import DATABASE_URL, DEBUG
+from app.config import (
+    DATABASE_URL,
+    DEBUG,
+    DB_POOL_SIZE,
+    DB_MAX_OVERFLOW,
+    DB_POOL_TIMEOUT,
+    DB_POOL_RECYCLE,
+    DB_POOL_PRE_PING,
+)
 
 # Force asyncpg driver for PostgreSQL
 if DATABASE_URL.startswith("postgresql://"):
@@ -30,10 +38,11 @@ if (
 engine = create_async_engine(
     DATABASE_URL,
     echo=DEBUG,
-    pool_size=20,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800,
+    pool_size=DB_POOL_SIZE,
+    max_overflow=DB_MAX_OVERFLOW,
+    pool_timeout=DB_POOL_TIMEOUT,
+    pool_recycle=DB_POOL_RECYCLE,
+    pool_pre_ping=DB_POOL_PRE_PING,
     connect_args=connect_args,
 )
 
