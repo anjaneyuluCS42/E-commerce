@@ -27,6 +27,8 @@ async def client():
 
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     transport = ASGITransport(app=app)
