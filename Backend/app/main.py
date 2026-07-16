@@ -6,10 +6,8 @@ from app.config import (
     LOG_FORMAT,
     PROMETHEUS_METRICS_ENABLED,
     DATABASE_URL,
-    SUPABASE_KEY,
 )
 from app.core.observability import setup_logging, init_sentry, init_prometheus
-from app.services.storage import init_storage_bucket
 
 # Initialize global structured logging and Sentry SDK
 setup_logging(LOG_FORMAT)
@@ -190,10 +188,6 @@ async def startup():
         except Exception as e:
             logger.warning(f"Could not create pg_trgm extension: {e}")
         await conn.run_sync(Base.metadata.create_all)
-
-    # Initialize Supabase public storage bucket if configured
-    if SUPABASE_KEY:
-        await init_storage_bucket(DATABASE_URL, SUPABASE_KEY)
 
 
 app.include_router(auth_router)

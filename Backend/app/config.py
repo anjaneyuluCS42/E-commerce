@@ -51,8 +51,10 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     PROMETHEUS_METRICS_ENABLED: bool = True
 
-    # Supabase Configuration
-    SUPABASE_KEY: Optional[str] = None
+    # Cloudinary Configuration
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
 
 
 settings = Settings()
@@ -74,4 +76,6 @@ SMTP_PASSWORD = settings.SMTP_PASSWORD
 SENTRY_DSN = settings.SENTRY_DSN
 LOG_FORMAT = settings.LOG_FORMAT
 PROMETHEUS_METRICS_ENABLED = settings.PROMETHEUS_METRICS_ENABLED
-SUPABASE_KEY = settings.SUPABASE_KEY
+CLOUDINARY_CLOUD_NAME = settings.CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY = settings.CLOUDINARY_API_KEY
+CLOUDINARY_API_SECRET = settings.CLOUDINARY_API_SECRET

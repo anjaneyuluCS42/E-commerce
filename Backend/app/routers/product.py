@@ -309,15 +309,19 @@ async def upload_product_image(
         # UNIQUE FILE NAME
         filename = f"{uuid.uuid4()}_{file.filename}"
 
-        if settings.SUPABASE_KEY:
+        if (
+            settings.CLOUDINARY_CLOUD_NAME
+            and settings.CLOUDINARY_API_KEY
+            and settings.CLOUDINARY_API_SECRET
+        ):
             try:
                 file_bytes = await file.read()
                 public_url = await storage.upload_image(
-                    database_url=settings.DATABASE_URL,
-                    supabase_key=settings.SUPABASE_KEY,
-                    filename=filename,
-                    content_type=file.content_type,
+                    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+                    api_key=settings.CLOUDINARY_API_KEY,
+                    api_secret=settings.CLOUDINARY_API_SECRET,
                     file_bytes=file_bytes,
+                    filename=filename,
                 )
                 if not public_url:
                     raise Exception("Upload failed - empty URL returned")

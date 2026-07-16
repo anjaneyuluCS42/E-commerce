@@ -39,3 +39,4 @@ email-validator>=2.0.0
 structlog>=24.1.0
 sentry-sdk[fastapi]>=1.40.0
 prometheus-fastapi-instrumentator>=6.1.0
+cloudinary>=1.36.0
