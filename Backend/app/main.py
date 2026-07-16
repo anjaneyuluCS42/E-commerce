@@ -1,35 +1,39 @@
+from app.config import (
+    ENVIRONMENT,
+    FRONTEND_URL,
+    ROOT_PATH,
+    SENTRY_DSN,
+    LOG_FORMAT,
+    PROMETHEUS_METRICS_ENABLED,
+)
+from app.core.observability import setup_logging, init_sentry, init_prometheus
+
+# Initialize global structured logging and Sentry SDK
+setup_logging(LOG_FORMAT)
+init_sentry(SENTRY_DSN, ENVIRONMENT)
+
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.staticfiles import StaticFiles
-
 from app.routers.product import router as product_router
-
 from app.models.user import User
 from app.models.product import Product
 from app.models.category import Category
-
 from app.database import engine, Base, get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.routers.cart import router as cart_router
-
 from app.routers.websocket import router as websocket_router
-
 from app.routers.auth import router as auth_router
 from app.routers.tasks import router as tasks_router
-
 from app.routers.ai import router as ai_router
-
 from app.models.order import Order, OrderItem
-
 from app.routers.order import router as order_router
-
 from app.auth.oauth2 import get_current_user
 
-from app.config import ENVIRONMENT, FRONTEND_URL, ROOT_PATH
-
 app = FastAPI(root_path=ROOT_PATH)
+
+if PROMETHEUS_METRICS_ENABLED:
+    init_prometheus(app)
 
 from slowapi.errors import RateLimitExceeded
 from app.security.rate_limit import limiter
@@ -48,10 +52,10 @@ async def rate_limit_exceeded_handler(request, exc: RateLimitExceeded):
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+import structlog
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import logging
 
-logger = logging.getLogger("uvicorn")
+logger = structlog.get_logger("app")
 
 
 @app.exception_handler(RequestValidationError)
@@ -206,7 +210,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         redis_status = f"unhealthy: {str(e)}"
 
     status_code = 200
-    if "unhealthy" in db_status:
+    if "unhealthy" in db_status or "unhealthy" in redis_status:
         status_code = 503
 
     return JSONResponse(

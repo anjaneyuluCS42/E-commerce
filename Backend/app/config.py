@@ -22,6 +22,7 @@ except ImportError:
     pass
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -45,6 +46,11 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
 
+    # Observability Configuration
+    SENTRY_DSN: Optional[str] = None
+    LOG_FORMAT: str = "json"
+    PROMETHEUS_METRICS_ENABLED: bool = True
+
 
 settings = Settings()
 
@@ -62,3 +68,7 @@ SMTP_HOST = settings.SMTP_HOST
 SMTP_PORT = settings.SMTP_PORT
 SMTP_USER = settings.SMTP_USER
 SMTP_PASSWORD = settings.SMTP_PASSWORD
+SENTRY_DSN = settings.SENTRY_DSN
+LOG_FORMAT = settings.LOG_FORMAT
+PROMETHEUS_METRICS_ENABLED = settings.PROMETHEUS_METRICS_ENABLED
+
