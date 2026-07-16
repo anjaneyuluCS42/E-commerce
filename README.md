@@ -36,6 +36,19 @@ graph TD
 
 ---
 
+## 📷 Application Screenshots
+
+### E-Commerce Customer Storefront
+![ShopHub Customer Storefront](media/media__1784181573631.png)
+
+### Admin Product Management Dashboard
+![ShopHub Admin Dashboard](media/media__1784194326934.png)
+
+### Edit Product Panel
+![ShopHub Edit Product](media/media__1784198042298.png)
+
+---
+
 ## 📂 Folder Structure
 
 ```
