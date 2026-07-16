@@ -4,6 +4,7 @@ import structlog
 import sentry_sdk
 from prometheus_fastapi_instrumentator import Instrumentator
 
+
 def setup_logging(log_format: str = "json"):
     shared_processors = [
         structlog.stdlib.add_logger_name,
@@ -20,7 +21,8 @@ def setup_logging(log_format: str = "json"):
         renderer = structlog.dev.ConsoleRenderer(colors=True)
 
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -53,6 +55,7 @@ def setup_logging(log_format: str = "json"):
         u_logger.handlers = []
         u_logger.propagate = True
 
+
 def init_sentry(dsn: str, environment: str = "development"):
     if dsn:
         sentry_sdk.init(
@@ -61,6 +64,7 @@ def init_sentry(dsn: str, environment: str = "development"):
             traces_sample_rate=1.0,
             profiles_sample_rate=1.0,
         )
+
 
 def init_prometheus(app):
     Instrumentator().instrument(app).expose(app, endpoint="/metrics")

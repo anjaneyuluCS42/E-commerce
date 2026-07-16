@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "json"
     PROMETHEUS_METRICS_ENABLED: bool = True
 
+    # Supabase Configuration
+    SUPABASE_KEY: Optional[str] = None
+
 
 settings = Settings()
 
@@ -71,4 +74,4 @@ SMTP_PASSWORD = settings.SMTP_PASSWORD
 SENTRY_DSN = settings.SENTRY_DSN
 LOG_FORMAT = settings.LOG_FORMAT
 PROMETHEUS_METRICS_ENABLED = settings.PROMETHEUS_METRICS_ENABLED
-
+SUPABASE_KEY = settings.SUPABASE_KEY

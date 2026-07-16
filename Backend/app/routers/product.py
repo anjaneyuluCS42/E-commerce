@@ -17,6 +17,8 @@ from app.schemas.product import ProductCreate, ProductResponse
 from app.auth.oauth2 import get_current_user, get_current_admin_user
 
 from app.cache.redis_client import redis_client
+from app.config import settings
+from app.services import storage
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -306,12 +308,29 @@ async def upload_product_image(
 
         # UNIQUE FILE NAME
         filename = f"{uuid.uuid4()}_{file.filename}"
-        filepath = f"uploads/product_images/{filename}"
 
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        filepaths.append(filepath)
+        if settings.SUPABASE_KEY:
+            try:
+                file_bytes = await file.read()
+                public_url = await storage.upload_image(
+                    database_url=settings.DATABASE_URL,
+                    supabase_key=settings.SUPABASE_KEY,
+                    filename=filename,
+                    content_type=file.content_type,
+                    file_bytes=file_bytes,
+                )
+                if not public_url:
+                    raise Exception("Upload failed - empty URL returned")
+                filepaths.append(public_url)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500, detail=f"Cloud upload failed: {str(e)}"
+                )
+        else:
+            filepath = f"uploads/product_images/{filename}"
+            with open(filepath, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            filepaths.append(filepath)
 
     existing_images = list(product.images) if product.images else []
     for filepath in filepaths:
