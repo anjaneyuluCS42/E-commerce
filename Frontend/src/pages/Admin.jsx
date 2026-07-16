@@ -735,7 +735,7 @@ export default function Admin() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      {['ID', 'Image', 'Name', 'Price', 'Stock', 'Category', 'Actions'].map((h) => (
+                      {['#', 'Image', 'Name', 'Price', 'Stock', 'Category', 'Actions'].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                           {h}
                         </th>
@@ -745,9 +745,9 @@ export default function Admin() {
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {productsLoading
                       ? Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={7} />)
-                      : products.map((p) => (
+                      : products.map((p, index) => (
                           <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                            <td className="px-4 py-3 text-sm font-bold text-gray-500 dark:text-gray-400">#{p.id}</td>
+                            <td className="px-4 py-3 text-sm font-bold text-gray-500 dark:text-gray-400">#{index + 1}</td>
                             <td className="px-4 py-3">
                               <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                                 <img
