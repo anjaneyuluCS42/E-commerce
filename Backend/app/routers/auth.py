@@ -549,6 +549,12 @@ async def get_google_login_url(request: Request):
     supabase_url = os.environ.get(
         "SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co"
     )
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    if not supabase_anon_key:
+        raise HTTPException(
+            status_code=400, detail="Supabase Auth is not configured."
+        )
+        
     # Dynamically resolve frontend redirect URI
     origin = request.headers.get("origin")
     if not origin:
@@ -562,7 +568,7 @@ async def get_google_login_url(request: Request):
     origin = origin.rstrip("/")
     redirect_url = f"{origin}/login"
     
-    auth_url = f"{supabase_url}/auth/v1/authorize?provider=google&redirect_to={redirect_url}"
+    auth_url = f"{supabase_url}/auth/v1/authorize?provider=google&redirect_to={redirect_url}&apikey={supabase_anon_key}"
     return {"url": auth_url}
 
 

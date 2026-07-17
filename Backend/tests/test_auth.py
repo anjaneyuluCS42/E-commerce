@@ -21,11 +21,21 @@ async def test_register_user(client):
 
 @pytest.mark.asyncio
 async def test_google_login_url(client):
-    response = await client.get("/auth/google/url")
-    assert response.status_code == 200
-    data = response.json()
-    assert "url" in data
-    assert "provider=google" in data["url"]
+    import os
+    original_key = os.environ.get("SUPABASE_ANON_KEY")
+    os.environ["SUPABASE_ANON_KEY"] = original_key or "mocked-anon-key-123"
+    try:
+        response = await client.get("/auth/google/url")
+        assert response.status_code == 200
+        data = response.json()
+        assert "url" in data
+        assert "provider=google" in data["url"]
+        assert "apikey=" in data["url"]
+    finally:
+        if original_key is None:
+            del os.environ["SUPABASE_ANON_KEY"]
+        else:
+            os.environ["SUPABASE_ANON_KEY"] = original_key
 
 
 @pytest.mark.asyncio
