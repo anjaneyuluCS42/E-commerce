@@ -133,6 +133,53 @@ const authService = {
       throw error?.detail || error?.message || 'Password reset failed';
     }
   },
+
+  loginWithOAuth: async (accessToken) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/oauth-callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw data;
+      }
+
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token);
+        }
+        
+        try {
+          const payloadBase64 = data.access_token.split('.')[1];
+          const decodedPayload = JSON.parse(atob(payloadBase64));
+          const userEmail = decodedPayload.sub;
+          const userRole = decodedPayload.role;
+          const userId = decodedPayload.id;
+          const userName = decodedPayload.username;
+          if (userEmail) {
+            const userObj = { 
+              email: userEmail, 
+              role: userRole, 
+              id: userId, 
+              username: userName 
+            };
+            localStorage.setItem('user', JSON.stringify(userObj));
+            data.user = userObj;
+          }
+        } catch (jwtError) {
+          console.error('Failed to decode JWT token:', jwtError);
+        }
+      }
+
+      return data;
+    } catch (error) {
+      throw error?.detail || error?.message || 'Google login verification failed';
+    }
+  },
 };
 
 export default authService;

@@ -41,6 +41,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithOAuth = async (accessToken) => {
+    try {
+      setError(null);
+      const response = await authService.loginWithOAuth(accessToken);
+      const userData = authService.getUser();
+      setUser(userData);
+      return response;
+    } catch (err) {
+      const message = typeof err === 'string' ? err : err?.detail || 'Google login verification failed';
+      setError(message);
+      throw new Error(message, { cause: err });
+    }
+  };
+
   // Check if user is already logged in on mount
   useEffect(() => {
     const storedUser = authService.getUser();
@@ -94,6 +108,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    loginWithOAuth,
     isLoggedIn: !!user && authService.isLoggedIn(),
   };
 

@@ -32,6 +32,10 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class OAuthCallbackRequest(BaseModel):
+    access_token: str
+
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 import logging
@@ -537,3 +541,147 @@ async def test_db_query(email: str, db: AsyncSession = Depends(get_db)):
             "error_message": str(e),
             "traceback": traceback.format_exc(),
         }
+
+
+@router.get("/google/url")
+@limiter.limit("10/minute")
+async def get_google_login_url(request: Request):
+    supabase_url = os.environ.get(
+        "SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co"
+    )
+    # Dynamically resolve frontend redirect URI
+    origin = request.headers.get("origin")
+    if not origin:
+        referer = request.headers.get("referer")
+        if referer:
+            from urllib.parse import urlparse
+            parsed_url = urlparse(referer)
+            origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+    if not origin:
+        origin = FRONTEND_URL
+    origin = origin.rstrip("/")
+    redirect_url = f"{origin}/login"
+    
+    auth_url = f"{supabase_url}/auth/v1/authorize?provider=google&redirect_to={redirect_url}"
+    return {"url": auth_url}
+
+
+@router.post("/oauth-callback")
+@limiter.limit("10/minute")
+async def oauth_callback(
+    request: Request,
+    response: Response,
+    payload: OAuthCallbackRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    supabase_url = os.environ.get(
+        "SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co"
+    )
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    if not supabase_anon_key:
+        raise HTTPException(status_code=400, detail="Supabase Auth is not configured.")
+        
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "apikey": supabase_anon_key,
+                    "Authorization": f"Bearer {payload.access_token}",
+                },
+            )
+            if resp.status_code != 200:
+                raise HTTPException(
+                    status_code=400, detail="Invalid or expired OAuth token."
+                )
+            user_data = resp.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error verifying OAuth token with Supabase: {e}")
+        raise HTTPException(status_code=400, detail="Failed to verify OAuth token.")
+        
+    email = user_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not provided by provider.")
+        
+    # Check if user exists in local database
+    res = await db.execute(select(User).where(User.email == email))
+    db_user = res.scalar_one_or_none()
+    
+    user_metadata = user_data.get("user_metadata", {})
+    full_name = user_metadata.get("full_name") or user_metadata.get("name") or email.split("@")[0]
+    
+    if not db_user:
+        # Create a new local user
+        import secrets
+        base_username = full_name.replace(" ", "").lower()
+        # Ensure alphanumeric-only username to satisfy validators
+        import re
+        base_username = re.sub(r'[^a-zA-Z0-9_\-]', '', base_username)
+        if not base_username:
+            base_username = "user"
+        username = base_username
+        suffix = 1
+        while True:
+            existing_user_res = await db.execute(select(User).where(User.username == username))
+            if not existing_user_res.scalar_one_or_none():
+                break
+            username = f"{base_username}{suffix}"
+            suffix += 1
+            
+        random_password = secrets.token_urlsafe(16)
+        db_user = User(
+            username=username,
+            email=email,
+            password=hash_password(random_password),
+            is_verified=True,
+        )
+        db.add(db_user)
+        await db.commit()
+        await db.refresh(db_user)
+        logger.info(f"Registered new Google OAuth user: {email}")
+    else:
+        # Update user's verification status if not verified
+        if not db_user.is_verified:
+            db_user.is_verified = True
+            await db.commit()
+            await db.refresh(db_user)
+            
+    # Create local JWT session tokens
+    app_access_token = create_access_token(
+        {
+            "sub": db_user.email,
+            "role": db_user.role,
+            "id": db_user.id,
+            "username": db_user.username,
+        }
+    )
+    app_refresh_token = create_refresh_token({"sub": db_user.email})
+    
+    # Set cookies
+    response.set_cookie(
+        key="access_token",
+        value=app_access_token,
+        httponly=True,
+        secure=(ENVIRONMENT == "production"),
+        samesite="lax",
+        max_age=1800,
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=app_refresh_token,
+        httponly=True,
+        secure=(ENVIRONMENT == "production"),
+        samesite="lax",
+        path="/auth/refresh",
+        max_age=604800,
+    )
+    
+    return {
+        "access_token": app_access_token,
+        "refresh_token": app_refresh_token,
+        "token_type": "bearer",
+    }
