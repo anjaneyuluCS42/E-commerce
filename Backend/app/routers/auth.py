@@ -551,23 +551,22 @@ async def get_google_login_url(request: Request):
     )
     supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
     if not supabase_anon_key:
-        raise HTTPException(
-            status_code=400, detail="Supabase Auth is not configured."
-        )
-        
+        raise HTTPException(status_code=400, detail="Supabase Auth is not configured.")
+
     # Dynamically resolve frontend redirect URI
     origin = request.headers.get("origin")
     if not origin:
         referer = request.headers.get("referer")
         if referer:
             from urllib.parse import urlparse
+
             parsed_url = urlparse(referer)
             origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
     if not origin:
         origin = FRONTEND_URL
     origin = origin.rstrip("/")
     redirect_url = f"{origin}/login"
-    
+
     auth_url = f"{supabase_url}/auth/v1/authorize?provider=google&redirect_to={redirect_url}&apikey={supabase_anon_key}"
     return {"url": auth_url}
 
@@ -578,17 +577,18 @@ async def oauth_callback(
     request: Request,
     response: Response,
     payload: OAuthCallbackRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     supabase_url = os.environ.get(
         "SUPABASE_URL", "https://kvqccplpvqcjuctjbkre.supabase.co"
     )
     supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
-    
+
     if not supabase_anon_key:
         raise HTTPException(status_code=400, detail="Supabase Auth is not configured.")
-        
+
     import httpx
+
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -608,36 +608,44 @@ async def oauth_callback(
     except Exception as e:
         logger.error(f"Error verifying OAuth token with Supabase: {e}")
         raise HTTPException(status_code=400, detail="Failed to verify OAuth token.")
-        
+
     email = user_data.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email not provided by provider.")
-        
+
     # Check if user exists in local database
     res = await db.execute(select(User).where(User.email == email))
     db_user = res.scalar_one_or_none()
-    
+
     user_metadata = user_data.get("user_metadata", {})
-    full_name = user_metadata.get("full_name") or user_metadata.get("name") or email.split("@")[0]
-    
+    full_name = (
+        user_metadata.get("full_name")
+        or user_metadata.get("name")
+        or email.split("@")[0]
+    )
+
     if not db_user:
         # Create a new local user
         import secrets
+
         base_username = full_name.replace(" ", "").lower()
         # Ensure alphanumeric-only username to satisfy validators
         import re
-        base_username = re.sub(r'[^a-zA-Z0-9_\-]', '', base_username)
+
+        base_username = re.sub(r"[^a-zA-Z0-9_\-]", "", base_username)
         if not base_username:
             base_username = "user"
         username = base_username
         suffix = 1
         while True:
-            existing_user_res = await db.execute(select(User).where(User.username == username))
+            existing_user_res = await db.execute(
+                select(User).where(User.username == username)
+            )
             if not existing_user_res.scalar_one_or_none():
                 break
             username = f"{base_username}{suffix}"
             suffix += 1
-            
+
         random_password = secrets.token_urlsafe(16)
         db_user = User(
             username=username,
@@ -655,7 +663,7 @@ async def oauth_callback(
             db_user.is_verified = True
             await db.commit()
             await db.refresh(db_user)
-            
+
     # Create local JWT session tokens
     app_access_token = create_access_token(
         {
@@ -666,7 +674,7 @@ async def oauth_callback(
         }
     )
     app_refresh_token = create_refresh_token({"sub": db_user.email})
-    
+
     # Set cookies
     response.set_cookie(
         key="access_token",
@@ -685,7 +693,7 @@ async def oauth_callback(
         path="/auth/refresh",
         max_age=604800,
     )
-    
+
     return {
         "access_token": app_access_token,
         "refresh_token": app_refresh_token,
